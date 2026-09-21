@@ -1,0 +1,36 @@
+{
+  "name": "@querio/prisma",
+  "version": "0.1.0",
+  "description": "Prisma adapter for Querio",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@querio/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "5.9.3"
+  },
+  "keywords": [
+    "querio",
+    "prisma",
+    "orm",
+    "adapter"
+  ]
+}
