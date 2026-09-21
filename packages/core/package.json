@@ -1,0 +1,59 @@
+{
+  "name": "@querio/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic query parsing, validation, and ORM mapping for REST APIs",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./compiler": {
+      "import": {
+        "types": "./dist/compiler/index.d.ts",
+        "default": "./dist/compiler/index.js"
+      },
+      "require": {
+        "types": "./dist/compiler/index.d.ts",
+        "default": "./dist/compiler/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run build.ts",
+    "test": "bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@types/bun": "^1.3.14",
+    "typescript": "5.9.3"
+  },
+  "keywords": [
+    "query",
+    "parser",
+    "filter",
+    "sort",
+    "search",
+    "pagination",
+    "orm",
+    "rest",
+    "api"
+  ]
+}
