@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["bun"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "paths": {
+      "@querio/core": ["./packages/core/src"],
+      "@querio/core/*": ["./packages/core/src/*"],
+      "@querio/prisma": ["./packages/prisma/src"],
+      "@querio/drizzle": ["./packages/drizzle/src"],
+      "@querio/typeorm": ["./packages/typeorm/src"]
+    }
+  },
+  "include": ["packages/*/src", "tests"],
+  "exclude": ["node_modules", "dist"]
+}
