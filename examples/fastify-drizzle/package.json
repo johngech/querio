@@ -1,0 +1,26 @@
+{
+  "name": "@queryjs/example-fastify-drizzle",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "QueryJS + Fastify + Drizzle (Bun SQLite) example server",
+  "scripts": {
+    "seed": "bun run src/seed.ts",
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "bun run typecheck"
+  },
+  "dependencies": {
+    "@queryjs/core": "file:../../packages/core",
+    "@queryjs/drizzle": "file:../../packages/drizzle",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "qs": "^6.16.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "@types/qs": "^6.15.1",
+    "typescript": "^7.0.2"
+  }
+}
