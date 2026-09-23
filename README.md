@@ -6,7 +6,7 @@ Querio parses raw HTTP query parameters (`filter`, `sort`, `search`, `pagination
 
 ## Features
 
-- **Framework-agnostic** — no NestJS, Express, or other framework dependencies
+- **Framework-agnostic** — no HTTP-framework or backend dependencies (works with Express, Fastify, Koa, plain Node, ...)
 - **ORM adapters** — Prisma, TypeORM, Drizzle (extensible interface)
 - **Type-safe** — full TypeScript types for all query objects
 - **Validated** — clear error messages for invalid query parameters
@@ -21,8 +21,8 @@ bun add @querio/core @querio/prisma   # or @querio/drizzle / @querio/typeorm
 ## Quick Start
 
 ```typescript
-import { defineQuery, defineRelation, parseQuery, q } from '@querio/core';
-import { prismaAdapter } from '@querio/prisma';
+import { defineQuery, defineRelation, q } from '@querio/core';
+import { prismaQueryAdapter } from '@querio/prisma';
 
 // 1. Define your resource schema with the fluent `q` API
 const memberQuery = defineRelation({
@@ -46,11 +46,10 @@ const usersQuery = defineQuery({
 
 // 2. Parse raw query params into a validated ResourceQuery
 function list(params: Record<string, unknown>) {
-  const query = parseQuery(params, usersQuery);
-  // shorthand: const query = usersQuery.parse(params);
+  const query = usersQuery.parse(params);
 
   // 3. Map to your ORM
-  const { where, orderBy, skip, take } = prismaAdapter.map(query);
+  const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
   return prisma.user.findMany({ where, orderBy, skip, take });
 }
 ```
@@ -60,14 +59,14 @@ function list(params: Record<string, unknown>) {
 ### Filtering
 
 ```
-?filter[status]=ACTIVE                    → [{ field: 'status', operator: 'eq', value: 'ACTIVE' }]
-?filter[age][gte]=18                      → [{ field: 'age', operator: 'gte', value: 18 }]
+?filter[status]=ACTIVE                    → [{ field: 'status', operator: 'equal', value: 'ACTIVE' }]
+?filter[age][greaterThanOrEqual]=18       → [{ field: 'age', operator: 'greaterThanOrEqual', value: 18 }]
 ?filter[status][in][]=ACTIVE&filter[status][in][]=PENDING
                                             → [{ field: 'status', operator: 'in', value: ['ACTIVE', 'PENDING'] }]
 ?filter[email][isNull]=true               → [{ field: 'email', operator: 'isNull' }]
 ```
 
-> **Note:** array operators (`in`, `nin`) are parsed from repeated `op[]=` parameters, not comma-separated strings.
+> **Note:** array operators (`in`, `notIn`) accept repeated `op[]=` parameters **or** a comma-separated list (e.g. `?filter[status][in]=ACTIVE,PENDING`).
 
 ### Sorting
 
@@ -110,7 +109,7 @@ Fine-tune allowed operators per field type:
 import { q } from '@querio/core';
 
 const spec = q.string().operators(
-  q.op.equal().contains().endsWith().in().nin().isNull().isNotNull(),
+  q.op.equal().notEqual().contains().endsWith().in().notIn().isNull().isNotNull(),
 );
 ```
 
@@ -141,32 +140,45 @@ const usersQuery = defineQuery({
 ### Prisma
 
 ```typescript
-import { prismaAdapter } from '@querio/prisma';
+import { prismaQueryAdapter } from '@querio/prisma';
 
-const { where, orderBy, skip, take } = prismaAdapter.map(query);
+const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
 await prisma.user.findMany({ where, orderBy, skip, take });
 ```
 
 ### TypeORM
 
 ```typescript
-import { typeormAdapter } from '@querio/typeorm';
+import { typeormQueryAdapter } from '@querio/typeorm';
 
-const { where, orderBy, skip, take } = typeormAdapter.map(query);
+const { where, orderBy, skip, take } = typeormQueryAdapter.map(query);
 await userRepository.find({ where, order: orderBy, skip, take });
 ```
 
 ### Drizzle
 
 ```typescript
-import { drizzleAdapter } from '@querio/drizzle';
+import { drizzleQueryAdapter, toDrizzleSQL } from '@querio/drizzle';
 
-const { where, orderBy, skip, take } = drizzleAdapter.map(query);
-// where.conditions can be serialized to a raw SQL string:
-// const sql = toDrizzleSQL(where);
+const { where, orderBy, skip, take } = drizzleQueryAdapter.map(query);
+const rows = await db
+  .select()
+  .from(users)
+  .where(where)
+  .orderBy(...(orderBy ?? []))
+  .limit(take)
+  .offset(skip);
+
+// The where/orderBy values are Drizzle SQL fragments; `toDrizzleSQL` flattens
+// one back to a plain SQL string when you need raw SQL (debugging, sql`…` tags):
+// const sqlText = toDrizzleSQL(where);
 ```
 
-## Custom Adapters
+> **Note:** relation filters (`?filter[member][accountNo]=…`) assume the relation
+> was joined under a table alias matching the relation path
+> (e.g. `leftJoin(users.member, member)`).
+
+### Custom Adapters
 
 Implement the `QueryMapperAdapter` interface and wrap it with a `map()` helper:
 

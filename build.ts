@@ -1,8 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { $ } from 'bun';
 
-// Clean dist directories
-await $`rm -rf packages/core/dist packages/prisma/dist packages/drizzle/dist packages/typeorm/dist`;
+// Clean dist directories (cross-platform rm -rf)
+for (const pkg of ['core', 'prisma', 'drizzle', 'typeorm']) {
+  rmSync(`packages/${pkg}/dist`, { recursive: true, force: true });
+}
 
 // Build core package
 console.log('Building @querio/core...');
@@ -32,6 +34,7 @@ const coreDist = 'packages/core/dist';
 const requiredArtifacts: [string, (src: string) => boolean][] = [
   ['index.js', (src) => /\bexport\b/.test(src) && !src.includes('__toCommonJS')],
   ['index.cjs', (src) => src.includes('__toCommonJS') || src.includes('require(')],
+  ['compiler/index.js', (src) => /\bexport\b/.test(src) && !src.includes('__toCommonJS')],
   ['compiler/index.cjs', (src) => src.includes('__toCommonJS') || src.includes('require(')],
 ];
 

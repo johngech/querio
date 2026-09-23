@@ -2,110 +2,103 @@
 
 > **A type-safe, declarative query language for TypeScript APIs.**
 
-Querio must feel like a high-quality TypeScript developer library: small public API, excellent type inference, composable primitives, predictable behavior, strong errors, clear architecture, and easy extensibility.
-
-The architecture below is **mandatory**. Do not introduce abstractions, dependencies, or shortcuts that violate these boundaries.
+Querio is designed to feel like a high-quality TypeScript developer library: small public API, predictable behavior, strong errors, clear architecture, and easy extensibility. This document is the **source of truth** for how the shipped code is structured. Do not introduce abstractions, dependencies, or shortcuts that violate these boundaries.
 
 ---
 
 ## 1. Processing Pipeline
 
+Querio parses raw HTTP query parameters into a validated, framework-independent query model (`ResourceQuery`), then compiles it to an ORM-specific representation via adapters.
+
 ```mermaid
 flowchart TD
     subgraph INPUT["Input"]
-        HTTP["HTTP / API Query String\n?search=name:abe*\n?filter=...\n?sort=-createdAt\n?page=1&limit=20"]
+        HTTP["HTTP / API Query String\n?filter[status]=ACTIVE\n?sort=-createdAt\n?search=name:abe*\n?page=1&limit=20"]
     end
 
     subgraph CORE["Core Processing"]
-        TOK["**Tokenizer**\nString → Tokens\nDeterministic scanner · O(n)"]
-        PAR["**Parser**\nTokens → AST\nSyntax only · No ORM knowledge"]
-        VAL["**Validator**\nAST + Query Definition\n→ Validated Query Model"]
+        PARSE["**Parser Engines**\nwhen/order/search engines\nRaw params → validated expressions"]
     end
 
     subgraph IR["Query Model / IR"]
-        QM["**Query Model**\nFramework / ORM / DB independent\n\nFilterExpression\nSearchExpression\nSortExpression\nPagination"]
+        QM["**ResourceQuery**\nFramework / ORM / DB independent\n\nfilters · relations · sort · search · pagination"]
     end
 
     subgraph ADAPTERS["Adapters"]
         PA["Prisma Adapter"]
         DA["Drizzle Adapter"]
+        TA["TypeORM Adapter"]
         CA["Custom Adapter"]
     end
 
     subgraph EXEC["Execution"]
         PE["Prisma Query"]
         DE["Drizzle Query"]
+        TE["TypeORM Query"]
         UE["User-defined"]
         DB["Database / API"]
     end
 
-    HTTP --> TOK
-    TOK -->|"tokens"| PAR
-    PAR -->|"AST"| VAL
-    QM -.->|"defines capabilities"| VAL
-    VAL -->|"validated"| QM
-
-    QM --> PA & DA & CA
+    HTTP --> PARSE
+    DEF["Query Definition"] -.->|"schema"| PARSE
+    PARSE -->|"validated"| QM
+    QM --> PA & DA & TA & CA
     PA --> PE --> DB
     DA --> DE --> DB
+    TA --> TE --> DB
     CA --> UE --> DB
 ```
 
-The architectural stages:
+The stages:
 
 ```
-Declaration → Tokenization → Parsing → Validation → Query Model → Compilation → Execution
+Query Definition → Parse & Validate (engines) → Query Model → Compilation (adapters) → Execution
 ```
 
-This separation is mandatory.
+- **Query Definition** declares *what* clients may query.
+- **Parser engines** validate raw input against that definition and produce application-level expressions. No ORM knowledge anywhere in this stage.
+- **Query Model** is the framework-independent intermediate representation.
+- **Adapters** translate the model into an ORM's execution format.
 
 ---
 
 ## 2. Dependency Direction
 
-Dependencies must point toward the framework-independent core.
+Dependencies point **toward** the framework-independent core.
 
 ```mermaid
 flowchart BT
     INTEGRATIONS["Application / Framework Integration"] --> ADAPTER["Adapter"]
     ADAPTER --> QM["Query Model"]
-    QM --> VALIDATOR["Validator"]
-    VALIDATOR --> PARSER["Parser"]
-    PARSER --> TOKENIZER["Tokenizer"]
-    TOKENIZER --> DEFINITION["Query Definition"]
+    QM --> ENGINE["Parser Engines"]
+    ENGINE --> DEFINITION["Query Definition"]
 ```
 
-The core must **never depend on infrastructure**.
-
-Forbidden dependencies:
+The core must **never** depend on infrastructure. Forbidden dependencies:
 
 ```
 ❌ Querio Core → Prisma
 ❌ Querio Core → Drizzle
-❌ Querio Core → NestJS
-❌ Querio Core → Express
-❌ Querio Core → Fastify
-❌ Tokenizer → Database
-❌ Parser → ORM
-❌ Validator → Prisma
+❌ Querio Core → TypeORM
+❌ Querio Core → Express / Fastify / any HTTP framework
 ❌ Query Definition → Database
-❌ Query Model → SQL
+❌ Query Model → SQL / ORM types
 ```
 
-The core must not know that Prisma, Drizzle, SQL, PostgreSQL, NestJS, or any other framework exists.
+The core must not know that Prisma, Drizzle, TypeORM, SQL, PostgreSQL, or any HTTP framework exists. Adaptations (LIKE syntax, ILIKE, collations, `mode: insensitive`, join aliasing) belong exclusively to adapters.
 
 ---
 
 ## 3. Query Definition
 
-Querio uses a schema-first fluent API inspired by the ergonomics of libraries such as Zod.
+The schema-first fluent `q` API declares a resource's queryable surface.
 
 ```mermaid
 flowchart TD
     subgraph API["Public API"]
-        DQ["defineQuery()"]
+        DQ["defineQuery() / defineRelation()"]
         Q["q.string()\nq.number()\nq.boolean()\nq.date()\nq.enum()"]
-        OP["q.op.eq()\nq.op.neq()\nq.op.contains()\n..."]
+        OP["q.op.equal()\nq.op.notEqual()\nq.op.contains()\n..."]
     end
 
     subgraph INTERNAL["Internal"]
@@ -118,49 +111,33 @@ flowchart TD
 ```
 
 ```ts
-import { defineQuery, q } from 'querio';
+import { defineQuery, defineRelation, q } from '@querio/core';
 
-const groupQuery = defineQuery({
+const memberQuery = defineRelation({
   fields: {
-    name: q
-      .string()
-      .max(100)
-      .searchable()
-      .sortable()
-      .operators(
-        q.op
-          .eq()
-          .neq()
-          .contains()
-          .startsWith()
-          .endsWith()
-          .in()
-          .nin(),
-      ),
-
-    isSystem: q
-      .boolean()
-      .sortable()
-      .operators(
-        q.op
-          .eq()
-          .neq(),
-      ),
-
-    createdAt: q
-      .date()
-      .sortable()
-      .operators(
-        q.op
-          .eq()
-          .neq()
-          .gt()
-          .gte()
-          .lt()
-          .lte(),
-      ),
+    accountNo: q.string().sortable().searchable(),
   },
 });
+
+const usersQuery = defineQuery({
+  fields: {
+    status: q.enum(['ACTIVE', 'INACTIVE']).sortable().searchable(),
+    firstName: q.string().sortable().searchable().operators(q.op.equal().contains()),
+    email: q.string().sortable(),
+    age: q.number().sortable(),
+    createdAt: q.date().sortable(),
+  },
+  relations: {
+    member: memberQuery,
+  },
+  limits: {
+    maxLimit: 50,
+    maxFilters: 100,
+    maxNestingDepth: 2,
+  },
+});
+
+const query = usersQuery.parse(req.query);
 ```
 
 The query definition describes:
@@ -171,6 +148,8 @@ It must not describe:
 
 > **How** the database executes the query.
 
+Definitions are **frozen** at `defineQuery` time: field specs and their operator lists are copied and `Object.freeze`d so later mutation cannot change parsing behavior.
+
 ---
 
 ## 4. Field Builder Responsibilities
@@ -179,22 +158,27 @@ A field builder has three distinct responsibilities:
 
 ```mermaid
 flowchart TD
-    QB["q.string()"] --> VC["Value Constraints\n.min() · .max()\n.optional() · .nullable()"]
+    QB["q.string()"] --> VC["Value Constraints\n.min() · .max() · .pattern() · .email()\n.integer() · .minLength() · .maxLength()"]
     QB --> QC["Query Capabilities\n.searchable() · .sortable()"]
-    QB --> OA["Allowed Operators\n.operators(q.op.eq()...)"]
+    QB --> OA["Allowed Operators\n.operators(q.op.equal()...)"]
 ```
 
 ### Value type
 
 ```
-q.string()   q.number()   q.boolean()   q.date()   q.datetime()   q.enum(...)
+q.string()   q.number()   q.boolean()   q.date()   q.enum(values)
 ```
+
+`q.enum()` accepts the allowed values; anything else is rejected at parse time.
 
 ### Value constraints
 
 ```
-.min()  .max()  .optional()  .nullable()
+.min(n)  .max(n)  .isInteger()   (numbers)
+.min(n)  .max(n)  .pattern(re)   .email()   (strings)
 ```
+
+Constraint violations surface as structured `QuerioError`s with machine-readable codes. Each constraint may carry a custom error message.
 
 ### Query capabilities
 
@@ -202,10 +186,12 @@ q.string()   q.number()   q.boolean()   q.date()   q.datetime()   q.enum(...)
 .searchable()  .sortable()
 ```
 
-### Operators
+These are explicit opt-ins. A field is never sortable or searchable unless declared so.
+
+### Allowed operators
 
 ```
-.operators(q.op.eq().neq().contains())
+.operators(q.op.equal().notEqual().contains().in().notIn().isNull().isNotNull())
 ```
 
 Keep these concepts separate. Do not collapse them into a single generic configuration object.
@@ -214,234 +200,135 @@ Keep these concepts separate. Do not collapse them into a single generic configu
 
 ## 5. Operator Architecture
 
-Operators belong under the `q.op` namespace.
+Operators live under the `q.op` namespace and are composed with `OpBuilder`, a fluent builder that returns a `FilterOperator[]`.
 
-```mermaid
-flowchart LR
-    subgraph OP["q.op"]
-        eq["eq()"]
-        neq["neq()"]
-        gt["gt()"]
-        gte["gte()"]
-        lt["lt()"]
-        lte["lte()"]
-        contains["contains()"]
-        startsWith["startsWith()"]
-        endsWith["endsWith()"]
-        nin["nin()"]
-        inp["in()"]
-    end
-```
+Short operator ids (`eq`, `neq`, `gt`, `gtq`) are the canonical **wire format**. The fluent API intentionally exposes readable names:
 
-Operators are capabilities **explicitly granted** to fields.
+| Fluent (public API)          | Wire id        | Meaning                    |
+|------------------------------|----------------|----------------------------|
+| `q.op.equal()`               | `eq`           | equals                     |
+| `q.op.notEqual()`            | `neq`          | not equals                 |
+| `q.op.greaterThan()`         | `gt`           | greater than               |
+| `q.op.greaterThanOrEqual()`  | `gte`          | greater than or equal      |
+| `q.op.lessThan()`            | `lt`           | less than                  |
+| `q.op.lessThanOrEqual()`     | `lte`          | less than or equal         |
+| `q.op.contains()`            | `contains`     | substring                  |
+| `q.op.startsWith()`          | `startsWith`   | prefix                     |
+| `q.op.endsWith()`            | `endsWith`     | suffix                     |
+| `q.op.in()`                  | `in`           | in list                    |
+| `q.op.notIn()`               | `nin`          | not in list                |
+| `q.op.isNull()`              | `isNull`       | is NULL                    |
+| `q.op.isNotNull()`           | `isNotNull`    | is not NULL                |
 
 ```ts
 q.boolean()
   .operators(
-    q.op.eq(),
+    q.op.equal(),
   );
 ```
 
-The following must **not** be accepted at runtime:
+Operators are capabilities **explicitly granted** to fields. A request like:
 
 ```
-isSystem:contains    ← "contains" is not a boolean operator
+?filter[isSystem][contains]=true    ← "contains" is not a boolean operator
 ```
 
-Operator availability should be represented in TypeScript wherever practical so that invalid combinations are rejected at compile time.
+is rejected with `ErrorCode.UNSUPPORTED_OPERATOR`.
 
-Runtime validation must still protect queries originating from HTTP or other untrusted sources.
+### Operator semantics registry
+
+`OPERATOR_SEMANTICS` (`operators/semantics.ts`) is the single source of truth describing each operator's **category** (value / string / null / array) and **null handling** (`isNull`/`notNull`/none). Adapters consult this registry and shared helpers (`nullClauseFor`, `buildLikePattern`, `escapeLikeValue`) so null rendering, LIKE construction, and value policies do not drift between ORMs.
 
 ---
 
-## 6. Tokenizer
+## 6. Parser Engines
 
-The tokenizer is responsible **only** for lexical analysis.
+There is **no tokenizer → AST → validator pipeline**. Parsing and validation happen together, per concern, inside three engine classes that read raw parameters and emit validated application-level expressions:
 
-```mermaid
-flowchart LR
-    IN["Input string"] --> TOK["Tokenizer"] --> OUT["Tokens"]
-```
+| Engine                 | Input       | Output                            |
+|------------------------|-------------|-----------------------------------|
+| `QueryWhereEngine`     | `filter`    | `FilterExpression[]` + `RelationFilterExpression[]` |
+| `QueryOrderEngine`     | `sort`      | `SortExpression[]`                |
+| `QuerySearchEngine`    | `search`    | `SearchQuery`                     |
+| `parsePagination`      | `page`/`limit` | `{ page, limit }`               |
 
-For `name:abe*`, the tokenizer produces conceptually:
+`parseQuery` (`parser/parser.ts`) orchestrates the engines against a `ResourceQueryDefinition` and resolved limits.
 
-```
-IDENTIFIER("name")  →  COLON  →  VALUE("abe")  →  WILDCARD("*")
-```
+Each engine is responsible for:
 
-The tokenizer **must**:
+- **Syntax** — is the parameter well-formed (e.g. relation must be an object, quoted search phrase terminated)?
+- **Capability** — does the field exist, is it sortable/searchable, is this operator allowed?
+- **Value** — does the value coerce to the declared type and pass constraints?
+- **Limits** — is this query within configured caps (max filters, nesting depth, search length)?
 
-- Use a deterministic scanner / state machine
-- Operate in O(n) for normal input
-- Avoid unnecessary regex-heavy parsing
-- Track source positions (start, end)
-- Produce useful syntax errors
-- Handle quoted values correctly
-- Support escaping where defined
-- Remain independent from query schemas
-- Remain independent from ORMs / databases
-- Never execute queries
-- Never validate whether a field exists
-
-> The tokenizer understands **characters and lexical structure**, not query meaning.
-
-The tokenizer must **not** know about:
-
-```
-Prisma · fields · database types · sortable fields · searchable fields · operators
-```
+Unknown or dangerous keys are handled with own-property checks (`Object.hasOwn`) so prototype-chain keys (`constructor`, `toString`) are never treated as fields.
 
 ---
 
-## 7. Parser
+## 7. Query Model / Intermediate Representation
 
-The parser converts tokens into an Abstract Syntax Tree.
+The IR is the boundary between **Query Language** and **Query Execution**. It is plain data — no ORM types, no SQL fragments.
 
-```mermaid
-flowchart LR
-    IN["Tokens"] --> PAR["Parser"] --> OUT["AST"]
-```
-
-For `name:abe*`, the parser produces:
-
-```
-FieldExpression
-├── field: "name"
-├── wildcard: true
-└── value: "abe"
-```
-
-The exact AST design may evolve, but the architectural rule does not:
-
-> The parser understands **syntax**, not application capabilities.
-
-The parser must **not** determine whether `name` actually exists. That belongs to validation.
-
----
-
-## 8. Validation
-
-Validation transforms parsed syntax into a valid Querio query model.
-
-```mermaid
-flowchart TD
-    AST["AST"] --> S["Syntax validation\nIs the query language syntactically valid?"]
-    S --> SE["Semantic validation\nDo the operators/values make sense?"]
-    SE --> CA["Schema / capability validation\nDid the developer declare this field/operator?"]
-    CA --> VA["Value validation\nIs the value the correct type?"]
-    VA --> CS["Complexity / security validation\nIs this query too expensive?"]
-    CS --> QM["Validated Query Model"]
-```
-
-Validation stages:
-
-```
-Syntax validation        → Is the query language syntactically valid?
-Semantic validation      → Are the operators meaningful?
-Schema/capability validation → Did the developer declare this?
-Value validation         → Is the value correct for the field type?
-Complexity/security validation → Is this query within limits?
-```
-
-Examples:
-
-```
-Does the field exist?
-Is the field searchable?
-Is the field sortable?
-Is this operator allowed?
-Does the value have the correct type?
-Is the value within configured limits?
-Is this query too expensive?
-```
-
----
-
-## 9. Query Model / Intermediate Representation
-
-After parsing and validation, Querio produces a framework-independent query model.
-
-```mermaid
-flowchart TD
-    subgraph QM["Query Model — Querio's Language"]
-        F["FilterExpression\n{ field, operator, value }"]
-        S["SearchExpression\n{ terms, fields }"]
-        SO["SortExpression\n{ field, direction }"]
-        P["Pagination\n{ page, limit }"]
-    end
+```ts
+interface ResourceQuery {
+  filters: FilterExpression[];          // { field, operator, value?, caseSensitive? }
+  relations: RelationFilterExpression[]; // { relation, filters[] } — dotted paths
+  sort: SortExpression[];               // { field, direction: 'asc' | 'desc' }
+  search?: SearchQuery;                 // { raw, terms[], fields[] }
+  pagination: { page: number; limit: number };
+}
 ```
 
 Example:
 
 ```ts
 {
-  filters: [
-    { field: 'name', operator: 'startsWith', value: 'abe' },
-  ],
+  filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
+  relations: [{ relation: 'member', filters: [{ field: 'accountNo', value: 'AC-1', operator: 'eq' }] }],
   search: undefined,
-  sort: [
-    { field: 'createdAt', direction: 'desc' },
-  ],
-  pagination: {
-    page: 1,
-    limit: 20,
-  },
+  sort: [{ field: 'createdAt', direction: 'desc' }],
+  pagination: { page: 1, limit: 20 },
 }
 ```
 
-This model **is Querio's language**.
-
-It must **not** contain:
-
-```
-PrismaWhereInput · PrismaOrderBy · SQL fragments
-Drizzle expressions · database-specific operators · ORM-specific types
-```
-
-The Query Model is the boundary between **Query Language** and **Query Execution**.
+Payloads are normalized before an adapter ever sees them: dates → ISO 8601 strings, numbers → numbers (strict formatting regex), booleans/enums → validated, `in`/`nin` → arrays. Null-equality (`eq`/`neq` with a NULL value) is carried on the expression and rendered by adapters as `IS NULL` / `IS NOT NULL` — never as `= NULL`.
 
 ---
 
-## 10. Search Architecture
+## 8. Search Architecture
 
-Search is a first-class subsystem.
+Search is a first-class subsystem parsed by `QuerySearchEngine`.
 
-Supported concepts:
+Supported syntax:
 
 ```
-Global search          ?search=abebe
-Field-specific search  ?search=name:abebe
-Contains               ?search=abebe
-Prefix                 ?search=name:abe*
-Phrase                 ?search="abebe beke"
+Global search          ?search=abebe                  → contains, any searchable field
+Phrase                 ?search="abebe beke"           → exact substring, phrase
+Prefix                 ?search=abe*                   → prefix match
+Field-specific         ?search=firstName:abebe        → restricted to firstName
+Field-specific prefix  ?search=firstName:abe*         → restricted prefix
+Mixed terms            ?search="abebe beke" firstName:abe*
 ```
 
-The processing pipeline:
+Rules:
 
-```mermaid
-flowchart LR
-    IN["Search string"] --> TOK["Tokenizer"]
-    TOK --> PAR["Parser"]
-    PAR --> SAST["Search AST"]
-    SAST --> VAL["Validation"]
-    VAL --> SE["Search Expression"]
-    SE --> ADAPTER["Adapter"]
-```
+- Global search operates **only** over fields explicitly marked `.searchable()`.
+- Field-specific search must reference a **searchable** field; unknown fields are rejected deterministically (`ErrorCode.UNKNOWN_SEARCH_FIELD`).
+- Terms are combinable; each term carries `{ value, match, field?, caseSensitive }`, where `caseSensitive` is resolved from the field spec.
+- Phrase/contains both compile to a contiguous-substring match; prefix compiles to starts-with.
 
-Global search operates **only** over fields explicitly marked `.searchable()`.
-
-Field-specific search must verify that the requested field supports search.
-
-Database-specific case-insensitive behavior (e.g. PostgreSQL `ILIKE`) belongs to the adapter and must **never** leak into Querio Core.
+Database-specific case-insensitive behavior (Prisma `mode: insensitive`, TypeORM `ILike`, Drizzle `LOWER()` + `LIKE`) belongs to the adapter and never leaks into core. LIKE wildcards are escaped (`%`, `_`, `\`) via the shared `escapeLikeValue`/`buildLikePattern` helpers so user input matches literally.
 
 ---
 
-## 11. Sorting Architecture
+## 9. Sorting Architecture
 
-Sorting must become explicit query data.
+Sorting becomes explicit query data.
 
 ```
-?sort=-createdAt,name
+?sort=-createdAt,name                      (comma-separated; - = desc)
+?sort[createdAt]=desc                      (direct object)
+?sort[0]=-createdAt&sort[1]=name           (indexed array / indexed object array)
 ```
 
 becomes:
@@ -456,268 +343,229 @@ becomes:
 Validation:
 
 ```
-Field exists?       → yes → Field is sortable?  → yes → ✅ Valid
-                                         → no  → ❌ Validation error
-                    → no  → ❌ Validation error
+Field exists?   → yes → Field is sortable?  → yes → ✅ Valid
+                              → no  → ❌ NON_SORTABLE_FIELD
+              → no  → ❌ NON_SORTABLE_FIELD
 ```
+
+Directions are normalized to `asc`/`desc`; anything else → `ErrorCode.INVALID_SORT_DIRECTION`.
 
 ---
 
-## 12. Pagination Architecture
+## 10. Pagination Architecture
 
-Pagination is framework-independent.
+Pagination is framework-independent and expressed as `{ page, limit }`.
+
+```
+?page=2&limit=25                          → { page: 2, limit: 25 }
+```
+
+Limits (`maxPage`, `maxLimit`, `defaultLimit`, per-resource or library defaults) are applied in `parsePagination`. Pages/limits are clamped into `[1, cap]`. Each adapter converts to its execution form:
+
+- Prisma: `skip`/`take`
+- TypeORM: `skip`/`take`
+- Drizzle: `offset`/`limit` derived from `skip`/`take`
+
+---
+
+## 11. Relations
+
+Relations reuse the same declarative schema and are validated against the definition with an explicit depth cap (`maxNestingDepth`, default 2) and bounded total filter count.
+
+```
+users
+├── firstName
+├── status
+└── member
+      └── accountNo
+```
+
+```
+?filter[member][accountNo]=AC-1           → { relation: 'member', filters: [{ field: 'accountNo', ... }] }
+?filter[org][parent][name]=x              → { relation: 'org.parent', filters: [{ field: 'name', ... }] }  (nested)
+```
+
+- Relation values must be objects → else `ErrorCode.RELATION_MUST_BE_OBJECT`.
+- Depth is checked during the walk → `ErrorCode.FILTER_DEPTH_EXCEEDED`.
+- Total scalar conditions, including nested ones, must stay under `maxFilters` → `ErrorCode.TOO_MANY_FILTERS`.
+
+Adapters render relation filters per their capabilities: Prisma nests into the relation object (aliased to the relation name), Drizzle emits relation-qualified identifiers (assuming matching join aliases), TypeORM nests via dotted-path objects.
+
+---
+
+## 12. Adapters
+
+Adapters translate the validated `ResourceQuery` into execution-specific `{ where, orderBy, skip, take }`.
+
+```mermaid
+flowchart TD
+    QM["ResourceQuery"] --> PA["Prisma Adapter"]
+    QM --> DA["Drizzle Adapter"]
+    QM --> TA["TypeORM Adapter"]
+    QM --> CA["Custom Adapter"]
+```
+
+Packages:
+
+```
+@querio/core      @querio/prisma      @querio/drizzle      @querio/typeorm
+```
+
+### Adapter contract (`@querio/core/compiler`)
 
 ```ts
-{ page: 1, limit: 20 }
+interface QueryMapperAdapter<TWhere = unknown, TOrderBy = unknown> {
+  buildWhere(query: ResourceQuery): TWhere | undefined;
+  buildOrderBy(sort: SortExpression[]): TOrderBy | undefined;
+  buildSkipTake(page: number, limit: number): { skip: number; take: number };
+}
 ```
 
-Future strategies:
+- `mapQuery(query, adapter)` is the canonical mapper; each built-in adapter exposes a convenience `.map(query)`.
+- `QueryMapper` provides static helpers shared by adapters (`toOrderBy`, `toSkipTake`).
 
-```
-Offset pagination · Page pagination · Cursor pagination
-```
+### Prisma adapter
 
-The core query model must not depend on how an adapter implements pagination.
+- Renders each operator to Prisma field filters (`equals`, `not`, `in`, `notIn`, `contains` + `mode: 'insensitive'`, ...).
+- Groups per field; two or more operators on one field emit an `AND` list (Prisma cannot always merge arbitrary operators in a single field filter).
+- Relation filters nest under the relation name; search ORs over targeted fields; null-equality renders as `equals: null`.
+- Type contract is structural in the adapter (avoids a hard Prisma peer dependency).
+
+### Drizzle adapter
+
+- Emits `SQL` fragments (`where`) and `SQL` fragments (`orderBy`) usable with the drizzle query builder (`.where(...).orderBy(...)`).
+- Case-insensitive matching uses `LOWER()` on both sides — portable across SQLite/PostgreSQL/MySQL without DB-specific collations.
+- LIKE always emits `ESCAPE '\'` so `%`/`_` are literal (SQLite has no implicit backslash escaping).
+- `toDrizzleSQL(sql)` flattens a fragment back to a plain SQL string for raw/debug uses.
+- Relation filters assume the caller joined each relation under an alias matching the relation path.
+
+### TypeORM adapter
+
+- Renders real `FindOperator`s (`In`, `Not`, `MoreThan`, `ILike`, `IsNull`, ...).
+- Multiple operators on the same field combine with `And(...)`.
+- Search alternatives OR-join via TypeORM's array-where form, each AND-ed against the base filter.
+- Null-equality renders with `IsNull()` / `Not(IsNull())`.
+
+### Custom adapters
+
+Implement `QueryMapperAdapter` and wrap with `mapQuery` (or `.map()`). Extensions use explicit contracts rather than internal implementation details.
+
+The adapter **owns** execution translation and must **not** modify Querio's semantic meaning.
 
 ---
 
-## 13. Relations
+## 13. Query Limits
 
-Relations use the same declarative architecture.
+Every resource may cap query complexity. All limits are optional and fall back to library defaults:
 
-```
-Group
-├── name
-├── createdAt
-└── permissions
-      ├── codename
-      ├── model
-      └── appLabel
-```
+| Limit                | Default          | Enforced            | Error                          |
+|----------------------|------------------|---------------------|--------------------------------|
+| `maxFilters`         | 100              | where engine        | `TOO_MANY_FILTERS`             |
+| `maxNestingDepth`    | 2                | where engine        | `FILTER_DEPTH_EXCEEDED`        |
+| `maxPage`            | 1_000_000        | pagination          | clamped                        |
+| `maxLimit`           | 100              | pagination          | clamped                        |
+| `defaultLimit`       | 10               | pagination          | —                              |
+| search `maxLength`   | 200              | search engine       | `SEARCH_TOO_LONG`              |
+| search `maxTerms`    | 10               | search engine       | `TOO_MANY_SEARCH_TERMS`        |
+| search `maxTermLength` | 100            | search engine       | `SEARCH_TERM_TOO_LONG`         |
 
-A relation contains another query definition.
-
-Relation traversal must be explicitly declared. Do not permit arbitrary unrestricted paths (`a.b.c.d.e.f`) without capability and complexity controls.
-
-Relations must be designed with:
-
-```
-Explicit declaration · Validation · Depth limits
-Complexity limits    · Adapter translation
-```
+Limits are resolved once per definition (`resolveLimits`) and cached.
 
 ---
 
-## 14. Adapters
+## 14. Security and Complexity
 
-Adapters translate the validated Querio Query Model into an execution-specific representation.
+Querio is an API query language and assumes query input is **untrusted**.
 
-```mermaid
-flowchart TD
-    QM["Query Model"] --> PA["Prisma Adapter"] --> PQ["Prisma Query"]
-    QM --> DA["Drizzle Adapter"] --> DQ["Drizzle Query"]
-    QM --> CA["Custom Adapter"] --> UQ["User Logic"]
-```
-
-Potential packages:
-
-```
-@querio/prisma    @querio/drizzle
-```
-
-The adapter **owns**:
-
-```
-ORM translation            · Database-specific semantics
-Database-specific limits   · Execution representation
-Database-specific optimizations
-```
-
-The adapter must **not** modify Querio's semantic meaning.
+- **Prototype-pollution safety** — every field/relation/search-field lookup uses own-property checks (`Object.hasOwn`); `constructor`/`toString`/`__proto__` can never act as queryable fields.
+- **Strict type coercion** — numbers must match a strict wire format regex (rejects hex, octal, `Infinity`, `NaN`, embedded garbage); booleans only `true`/`false`; dates must parse; enums must be declared values.
+- **Capability whitelisting** — clients may only query capabilities explicitly declared (`searchable`, `sortable`, `operators`).
+- **Complexity caps** — filters (including nested), relation depth, search length/terms, pagination bounds. Pathological queries are rejected before reaching the database.
+- **LIKE literal safety** — substring values are escaped and empty substring matches rejected, so `LIKE '%%'` full-table scans and wildcard injection are prevented.
+- **Null semantics** — `eq`/`neq` with NULL consistently map to `IS NULL`/`IS NOT NULL`.
 
 ---
 
-## 15. NestJS Integration
+## 15. Error Architecture
 
-NestJS integration must be isolated in `@querio/nestjs`.
+Errors are structured and machine-readable through a single type, `QuerioError`, carrying an `ErrorCode`.
 
-```mermaid
-flowchart TD
-    NC["NestJS Controller"] --> NI["NestJS Integration"] --> QC["Querio Core"] --> QM["Validated Query Model"]
+```
+message · code · field? · operator? · path? · details?  ·  statusCode (400)
 ```
 
-NestJS-specific concerns belong **only** in this integration package. The core must not import NestJS.
+Codes are grouped by category:
+
+```
+Filter:   UNKNOWN_FIELD, UNSUPPORTED_OPERATOR, INVALID_FILTER_VALUE,
+          FILTER_DEPTH_EXCEEDED, RELATION_MUST_BE_OBJECT, TOO_MANY_FILTERS
+Sort:     NON_SORTABLE_FIELD, INVALID_SORT_DIRECTION, EMPTY_SORT_FIELD
+Search:   NO_SEARCHABLE_FIELDS, SEARCH_TOO_LONG, TOO_MANY_SEARCH_TERMS,
+          SEARCH_TERM_TOO_LONG, NON_SEARCHABLE_FIELD, UNKNOWN_SEARCH_FIELD,
+          EMPTY_SEARCH_VALUE, EMPTY_SEARCH_QUERY, UNTERMINATED_PHRASE
+Value:    INVALID_BOOLEAN, INVALID_NUMBER, INVALID_DATE, INVALID_ENUM_VALUE,
+          VALUE_TOO_SHORT, VALUE_TOO_LONG, VALUE_OUT_OF_RANGE,
+          VALUE_NOT_INTEGER, VALUE_NOT_EMAIL, VALUE_PATTERN_MISMATCH
+```
+
+Example:
+
+```
+QuerioError: Operator 'contains' is not supported for field 'isSystem' (allowed: eq)
+code: UNSUPPORTED_OPERATOR · field: 'isSystem' · operator: 'contains' · statusCode: 400
+```
+
+Error messages never leak ORM or database implementation details.
 
 ---
 
 ## 16. Package Structure
 
-```mermaid
-block-beta
-    columns 1
-
-    block:querio:1
-        columns 1
-
-        block:packages:1
-            columns 4
-
-            block:core:1
-                columns 1
-                def["definition/\ndefineQuery.ts\nQueryDefinition.ts\nfields/"]
-                ops["operators/\nOperator.ts\nOperatorRegistry.ts\noperators/"]
-                tok["tokenizer/\nTokenizer.ts\nToken.ts\nTokenizerError.ts"]
-                par["parser/\nParser.ts\nAST.ts\nParserError.ts"]
-                val["validation/\nQueryValidator.ts\nValidationError.ts\nrules/"]
-                qry["query/\nFilter.ts · Search.ts\nSort.ts · Pagination.ts\nResourceQuery.ts"]
-                comp["compiler/\nQueryCompiler.ts\nCompilerContext.ts"]
-            end
-
-            block:ext1:1
-                nestjs["nestjs/\nsrc/"]
-            end
-
-            block:ext2:1
-                prisma["prisma/\nsrc/"]
-            end
-
-            block:ext3:1
-                drizzle["drizzle/\nsrc/"]
-            end
-        end
-
-        block:tests:1
-            columns 5
-            t1["tokenizer/"]
-            t2["parser/"]
-            t3["validation/"]
-            t4["definition/"]
-            t5["integration/"]
-        end
-    end
-```
-
-The exact filenames may evolve, but the architectural boundaries must remain.
-
----
-
-## 17. Mandatory Directory Structure
-
-The following directory structure is **mandatory**. Agents must not create files or directories outside this structure.
-
 ```
 querio/
 │
 ├── packages/
-│   │
 │   ├── core/
 │   │   └── src/
-│   │       │
-│   │       ├── definition/
-│   │       │   ├── defineQuery.ts
-│   │       │   ├── query-definition.ts
-│   │       │   ├── fields.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── operators/
-│   │       │   ├── operators.ts
-│   │       │   ├── operator-types.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── tokenizer/
-│   │       │   ├── tokenizer.ts
-│   │       │   ├── token.ts
-│   │       │   ├── token-type.ts
-│   │       │   ├── tokenizer-error.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── parser/
-│   │       │   ├── parser.ts
-│   │       │   ├── ast.ts
-│   │       │   ├── ast-types.ts
-│   │       │   ├── parser-error.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── validation/
-│   │       │   ├── validator.ts
-│   │       │   ├── validation-error.ts
-│   │       │   ├── validation-types.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── query/
-│   │       │   ├── filter.ts
-│   │       │   ├── search.ts
-│   │       │   ├── sort.ts
-│   │       │   ├── pagination.ts
-│   │       │   ├── relation.ts
-│   │       │   ├── query-types.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       ├── compiler/
-│   │       │   ├── compiler.ts
-│   │       │   ├── compiler-types.ts
-│   │       │   └── index.ts
-│   │       │
-│   │       └── index.ts
+│   │       ├── definition/     # defineQuery, defineRelation, field builders, limits, types
+│   │       ├── operators/      # q namespace, OpBuilder, operator semantics, defaults
+│   │       ├── parser/         # parseQuery + where/order/search engines
+│   │       ├── query/          # FilterExpression, SortExpression, SearchQuery, ResourceQuery, QuerioError
+│   │       ├── compiler/       # QueryMapper, mapQuery, adapter contracts
+│   │       └── index.ts        # PUBLIC BARREL — the only public surface
 │   │
-│   ├── nestjs/
-│   │   └── src/
-│   │       ├── querio.pipe.ts
-│   │       ├── querio.decorator.ts
-│   │       └── index.ts
-│   │
-│   ├── prisma/
-│   │   └── src/
-│   │       ├── adapter.ts
-│   │       ├── translators.ts
-│   │       └── index.ts
-│   │
-│   └── drizzle/
-│       └── src/
-│           ├── adapter.ts
-│           ├── translators.ts
-│           └── index.ts
+│   ├── prisma/                 # @querio/prisma adapter
+│   │   └── src/index.ts, adapter.ts
+│   ├── drizzle/                # @querio/drizzle adapter
+│   │   └── src/index.ts, adapter.ts
+│   └── typeorm/                # @querio/typeorm adapter
+│       └── src/index.ts, adapter.ts
 │
 ├── tests/
-│   ├── definition/
-│   ├── operators/
-│   ├── tokenizer/
-│   ├── parser/
-│   ├── validation/
-│   ├── query/
-│   ├── compiler/
-│   └── integration/
+│   ├── definition/             # definition.spec.ts, operators.spec.ts
+│   ├── parser/                 # parser, where/order/search engines, fuzz
+│   ├── validation/             # errors.spec.ts
+│   ├── compiler/               # compiler.spec.ts
+│   └── adapters/               # prisma, drizzle, typeorm, operator-parity
 │
-├── docs/
+├── docs/                       # this document, implementation status
 ├── package.json
-├── tsconfig.json
-└── README.md
+└── tsconfig.json
 ```
 
 ### Enforcement Rules
 
-1. **Core modules must stay in `packages/core/src/`**: Do not create new top-level directories under `packages/core/src/` without explicit approval.
-
-2. **One module per directory**: Each architectural module (definition, operators, tokenizer, parser, validation, query, compiler) has its own directory with an `index.ts` barrel export.
-
-3. **Adapter packages are isolated**: `packages/prisma/`, `packages/drizzle/`, `packages/nestjs/` are separate packages that depend on core, never the reverse.
-
-4. **Tests mirror source structure**: Test files go in `tests/<module>/` matching the source module name.
-
-5. **No new directories without justification**: Before creating a new directory, verify it does not already exist and that it fits the established architecture.
-
-6. **File naming conventions**:
-   - Use kebab-case for filenames (e.g., `query-definition.ts`, `operator-types.ts`)
-   - Each directory ends with `index.ts` as the public barrel export
-   - Error types live in `<module>-error.ts` within their module directory
-
-7. **New adapters go in `packages/<adapter-name>/`**: Follow the same structure as `prisma/` or `drizzle/`.
-
-8. **New integrations go in `packages/<integration-name>/`**: Follow the same structure as `nestjs/`.
+1. **Core modules stay in `packages/core/src/`** — do not create new top-level directories there without explicit approval.
+2. **One module per directory** — each module (definition, operators, parser, query, compiler) has an `index.ts`.
+3. **Adaptation packages are isolated** — `packages/prisma|drizzle|typeorm` depend on core, never the reverse.
+4. **Core is only imported via its public barrel** (`packages/core/src/index.ts`) or the documented `@querio/core/compiler` subpath. Engine/parser/compiler internals may only be imported from within core or tests.
+5. **Tests mirror source structure** — test files live in `tests/<module>/`.
+6. **File naming** — kebab-case filenames; each directory ends with `index.ts`.
+7. **New adapters go in `packages/<adapter-name>/`** with the same structure as prisma/drizzle/typeorm.
 
 ---
 
-## 18. Core Design Principles
+## 17. Core Design Principles
 
 ### Principle 1 — Core independence
 
@@ -728,67 +576,60 @@ Core knows query language.  Core does not know execution technology.
 ### Principle 2 — Single responsibility
 
 ```
-Tokenizer → lexical structure
-Parser    → syntax
-Validator → correctness / capabilities
-Model     → semantic representation
-Adapter   → execution translation
+Definition → what clients may query
+Engines    → parse + validate one concern
+Model      → semantic representation
+Adapter    → execution translation
 ```
 
-### Principle 3 — Parse once
+### Principle 3 — Parse and validate once
 
-Do not repeatedly parse the same query at different layers.
+Raw params are validated a single time by the engines. Downstream adapters **trust** the `ResourceQuery` they receive.
 
 ```
-Raw Query → Tokenize → Parse → Validate → Query Model
+Raw Query → Parse/Validate (engines) → Query Model → Adapter → Execution
 ```
 
-### Principle 4 — Validate once
+### Principle 4 — Compile anywhere
 
-Once a query model is validated, downstream adapters trust its semantic correctness.
+The same `ResourceQuery` is usable by Prisma, Drizzle, TypeORM, custom adapters, and other data sources.
 
-### Principle 5 — Compile anywhere
-
-The same Query Model is usable by Prisma, Drizzle, SQL, Mongo, HTTP APIs, and custom data sources.
-
-### Principle 6 — Capabilities are explicit
+### Principle 5 — Capabilities are explicit
 
 Fields explicitly declare `searchable`, `sortable`, allowed operators, and value constraints. Never infer dangerous capabilities from the underlying ORM schema.
 
-### Principle 7 — Security by declaration
+### Principle 6 — Security by declaration
 
 Clients may only query capabilities explicitly exposed by the query definition.
 
-### Principle 8 — Type safety
+### Principle 7 — Type safety
 
-Prefer compile-time safety for field builders, operator builders, field types, operator compatibility, query definitions, and adapter contracts.
+Prefer compile-time safety for field builders, operator builders, field types, and adapter contracts. Runtime validation remains mandatory for untrusted input.
 
-Runtime validation remains mandatory for untrusted input.
+### Principle 8 — Framework independence
 
-### Principle 9 — Framework independence
+Querio Core is usable without any HTTP framework or ORM.
 
-Querio Core is usable without NestJS, Prisma, Express, or Fastify.
+### Principle 9 — Extensibility
 
-### Principle 10 — Extensibility
-
-Developers extend Querio without modifying its core. Extension points: custom field types, custom operators, custom validators, custom query capabilities, custom parsers, custom adapters.
-
-Extensions use explicit contracts rather than internal implementation details.
+Developers extend Querio with custom field types, custom adapters, and custom query capabilities — without modifying core. Extensions use explicit contracts.
 
 ---
 
-## 19. Performance Requirements
+## 18. Performance Requirements
 
-The tokenizer and parser are performance-sensitive components.
+The parser engines are performance-sensitive; they are exercised on every request.
 
 Prefer:
 
 ```
-Single-pass scanning · O(n) tokenization
-Minimal allocations  · Deterministic parsing
+Single-pass walks       · No regex-heavy parsing for tokenization
+Low per-parse allocation · Cached operator sets / resolved limits
 ```
 
-Benchmark:
+Per-parse hot paths use `WeakMap`/object caches (operator sets, enum value sets, resolved limits) so validation stays fast without mutating public specs.
+
+Correctness comes first. Avoid premature optimization, but keep the architecture suitable for benchmarking:
 
 ```
 Small query  · Medium query  · Large query
@@ -796,103 +637,54 @@ Many filters · Many search terms
 Nested relations · Invalid queries · Deep queries
 ```
 
-Correctness comes first. Avoid premature optimization, but keep the architecture suitable for benchmarking.
+---
+
+## 19. Testing Architecture
+
+Every layer is independently tested with Bun's test runner (`.spec.ts` files, no Jest/Vitest):
+
+```
+Definition tests   · Operator tests   · Where/order/search engine tests
+Search tests       · Sort tests       · Pagination tests
+Relation tests     · Adapter tests    · Error tests
+Fuzz tests         · Operator-parity tests
+```
+
+- **Fuzz/property tests** (`tests/parser/fuzz.spec.ts`) exercise the engines with a seeded PRNG, asserting invariants: no unknown fields leak, disallowed operators rejected, values typed per spec, pagination always in `[1, cap]`.
+- **Operator-parity tests** (`tests/adapters/operator-parity.spec.ts`) drive every operator through Prisma, Drizzle, and TypeORM adapters so null handling, empty-array semantics, LIKE escaping, and case behavior cannot drift between ORMs.
+- Parser/search tests include malformed and edge-case inputs.
 
 ---
 
-## 20. Security and Complexity
+## 20. Public API Philosophy
 
-Querio is an API query language and must assume that query input is untrusted.
-
-Configurable limits:
-
-```
-Maximum query length      · Maximum number of filters
-Maximum search terms      · Maximum term length
-Maximum relation depth    · Maximum sort fields
-Maximum pagination limit  · Maximum query complexity
-```
-
-Reject pathological queries before they reach the database. Do not allow clients to bypass declared capabilities.
-
----
-
-## 21. Error Architecture
-
-Errors are structured and developer-friendly.
-
-Distinct error types:
-
-```
-TokenizerError      · ParserError       · ValidationError
-CapabilityError     · QueryLimitError
-```
-
-Errors contain source information:
-
-```
-message · code · position · input context · field · operator
-```
-
-Example:
-
-```
-Invalid operator "contains" for field "isSystem".
-The field supports: eq, neq.
-```
-
-Avoid leaking ORM / database implementation details through core errors.
-
----
-
-## 22. Testing Architecture
-
-Every major architectural layer is independently testable.
-
-```
-Tokenizer tests        · Parser tests       · Definition tests
-Operator tests         · Validation tests    · Search tests
-Sort tests             · Pagination tests    · Relation tests
-Adapter tests          · Integration tests
-```
-
-Parser / tokenizer tests include malformed and edge-case inputs.
-
-Consider property-based / fuzz testing for tokenizer, parser, and query validation — especially for untrusted HTTP input.
-
----
-
-## 23. Public API Philosophy
-
-The public API remains small. The developer primarily interacts with:
+The public API stays small. Developers interact with:
 
 ```ts
-defineQuery(...)
-q.string()   q.number()   q.boolean()   q.date()   q.enum(...)
-q.op.eq()    q.op.neq()   q.op.contains()   ...
+import { defineQuery, defineRelation, q } from '@querio/core';
+import { prismaQueryAdapter } from '@querio/prisma';
+
+const usersQuery = defineQuery({ fields: { name: q.string().sortable().searchable() } });
+const query = usersQuery.parse(req.query);
+const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
 ```
-
-Do not expose internal parser / tokenizer / AST implementation details as the normal developer workflow.
-
-Internal architecture may be sophisticated while the public API remains simple.
 
 > **Simple outside, sophisticated inside.**
 
+Engine buffers, normalizers, and mapper internals are not part of the normal developer workflow.
+
 ---
 
-## 24. Architectural Mental Model
+## 21. Architectural Mental Model
 
-Always reason about Querio using these three boundaries:
+```
+DEFINITION  ≠  PARSING/VALIDATION  ≠  MODEL  ≠  EXECUTION
+```
 
 ```mermaid
 flowchart TD
-    subgraph SYNTAX["SYNTAX"]
-        TOK["Tokenizer"]
-        PAR["Parser"]
-    end
-
     subgraph SEMANTICS["SEMANTICS"]
-        VAL["Validator"]
+        ENG["Parser Engines\n(parse + validate)"]
         QM["Query Model / IR"]
     end
 
@@ -901,64 +693,59 @@ flowchart TD
         ORM["ORM / Database"]
     end
 
-    SYNTAX --> SEMANTICS --> EXECUTION
+    DEF["Query Definition"] -.->|"schema"| ENG
+    ENG --> QM
+    QM --> ADAPTER --> ORM
 ```
 
-The most important separation:
-
-```
-Syntax  ≠  Semantics  ≠  Execution
-```
-
-Never collapse them.
+Never collapse these boundaries.
 
 ---
 
-## 25. Non-Negotiable Architecture
+## 22. Non-Negotiable Architecture
 
 ```mermaid
 flowchart TD
     subgraph DEF["Query Definition"]
-        D1["defineQuery()"]
-        D2["q.string() · q.number() · q.boolean()\nq.date() · q.enum() · q.op.eq()"]
+        D1["defineQuery() / defineRelation()"]
+        D2["q.string() · q.number() · q.boolean()\nq.date() · q.enum() · q.op.equal()"]
     end
 
-    HTTP["HTTP Query"] --> TOK
+    HTTP["HTTP Query"] --> ENG
 
     subgraph CORE["Core Processing"]
-        TOK["Tokenizer"]
-        PAR["Parser"]
-        VAL["Validator"]
+        ENG["Parser Engines\n(where/order/search + pagination)"]
     end
 
     subgraph IR["Query Model / IR"]
-        QM["Validated Query Model"]
+        QM["Validated ResourceQuery"]
     end
 
     subgraph ADAPTERS["Adapters"]
         PA["Prisma Adapter"]
         DA["Drizzle Adapter"]
+        TA["TypeORM Adapter"]
         CA["Custom Adapter"]
     end
 
     subgraph EXEC["Execution"]
         PE["Prisma"] --> DB["Database"]
         DE["Drizzle"] --> DB
+        TE["TypeORM"] --> DB
         UE["Custom"] --> DB
     end
 
-    DEF -.->|"schema"| VAL
-    TOK -->|"tokens"| PAR
-    PAR -->|"AST"| VAL
-    VAL -->|"validated"| QM
-    QM --> PA & DA & CA
+    DEF -.->|"schema"| ENG
+    ENG -->|"validated"| QM
+    QM --> PA & DA & TA & CA
     PA --> PE
     DA --> DE
+    TA --> TE
     CA --> UE
 ```
 
 **The architectural law of Querio:**
 
-> **Define once. Parse efficiently. Validate consistently. Represent semantically. Compile anywhere.**
+> **Define once. Parse and validate consistently. Represent semantically. Compile anywhere.**
 
 Any future feature must fit into this architecture rather than bypassing it.

@@ -3,10 +3,22 @@
   "version": "0.1.0",
   "description": "Framework-agnostic query parsing, validation, and ORM mapping for REST APIs",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/johngech/querio.git"
+  },
+  "author": "Yohannes Getachew <yohngech@gmail.com>",
+  "bugs": {
+    "url": "https://github.com/johngech/querio/issues"
+  },
+  "homepage": "https://github.com/johngech/querio#readme",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
   "exports": {
     ".": {
       "import": {
