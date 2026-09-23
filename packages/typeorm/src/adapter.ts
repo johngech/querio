@@ -56,7 +56,7 @@ export const typeormQueryAdapter = {
     if (sort.length === 0) return undefined;
     const order: TypeORMOrderBy = {};
     for (const s of sort) {
-      order[s.field] = directionToTypeORM(s.direction);
+      setOwnKey(order, s.field, directionToTypeORM(s.direction));
     }
     return order;
   },
@@ -73,11 +73,10 @@ function directionToTypeORM(direction: 'asc' | 'desc'): 'ASC' | 'DESC' {
 }
 
 function buildWhereFromQuery(query: ResourceQuery): TypeORMWhere | TypeORMWhere[] | undefined {
-  const base: TypeORMWhere = {};
-
-  if (query.filters.length > 0) {
-    Object.assign(base, buildScalarWhere(query.filters));
-  }
+  // Spread (not Object.assign) so an own `__proto__` filter key survives:
+  // Object.assign copies via [[Set]], which hits the prototype setter and drops
+  // the key entirely. Spread uses CreateDataProperty and preserves it.
+  const base: TypeORMWhere = query.filters.length > 0 ? { ...buildScalarWhere(query.filters) } : {};
   for (const rel of query.relations) {
     setNestedWhere(base, rel.relation, buildScalarWhere(rel.filters));
   }
@@ -101,12 +100,16 @@ function andWhere(base: TypeORMWhere, alt: TypeORMWhere): TypeORMWhere {
   for (const [field, searchValue] of Object.entries(alt)) {
     const existing = merged[field];
     if (existing === undefined) {
-      merged[field] = searchValue;
+      setOwnKey(merged, field, searchValue);
     } else {
       const baseValue = existing instanceof FindOperator ? existing : Equal(existing as never);
-      merged[field] = And(
-        baseValue,
-        searchValue instanceof FindOperator ? searchValue : Equal(searchValue as never),
+      setOwnKey(
+        merged,
+        field,
+        And(
+          baseValue,
+          searchValue instanceof FindOperator ? searchValue : Equal(searchValue as never),
+        ),
       );
     }
   }
@@ -126,8 +129,17 @@ function buildScalarWhere(filters: FilterExpression[]): TypeORMWhere {
 
   const where: TypeORMWhere = {};
   for (const [field, ops] of grouped) {
-    where[field] =
-      ops.length === 1 ? ops[0] : (And(...(ops as FindOperator<unknown>[])) as unknown);
+    // A single `eq` renders as a bare value (TypeORM treats it as equality and
+    // tests lock that shape). When a field carries multiple operators, wrap any
+    // non-operator values in `Equal(...)` so `And()` only sees FindOperators.
+    if (ops.length === 1) {
+      setOwnKey(where, field, ops[0]);
+    } else {
+      const combined = ops.map((value) =>
+        value instanceof FindOperator ? value : Equal(value as never),
+      );
+      setOwnKey(where, field, And(...(combined as FindOperator<unknown>[])) as unknown);
+    }
   }
   return where;
 }
@@ -137,13 +149,32 @@ function setNestedWhere(target: TypeORMWhere, key: string, value: unknown): void
   const segments = key.split('.');
   let node: TypeORMWhere = target;
   for (let i = 0; i < segments.length - 1; i++) {
-    const existing = node[segments[i]];
-    if (typeof existing !== 'object' || existing === null) {
-      node[segments[i]] = {};
+    const segment = segments[i];
+    // Own-property check only — never resolve a path segment through the
+    // prototype chain (a `__proto__` segment would otherwise walk the target's
+    // prototype and pollute it).
+    const existing = Object.hasOwn(node, segment) ? node[segment] : undefined;
+    if (existing === undefined || typeof existing !== 'object' || existing === null) {
+      setOwnKey(node, segment, {});
     }
-    node = node[segments[i]] as TypeORMWhere;
+    node = node[segment] as TypeORMWhere;
   }
-  node[segments[segments.length - 1]] = value;
+  setOwnKey(node, segments[segments.length - 1], value);
+}
+
+/**
+ * Define an own key without tripping the `__proto__` setter. Adapters treat
+ * `ResourceQuery` as trusted input, but a hand-built query with a `__proto__`
+ * field/sort key would otherwise be silently dropped (the prototype setter
+ * swallows the assignment and no own property is created).
+ */
+function setOwnKey(target: TypeORMWhere, key: string, value: unknown): void {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 }
 
 const OPERATORS: Record<FilterOperator, (value: unknown, caseSensitive?: boolean) => unknown> = {

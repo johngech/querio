@@ -31,13 +31,7 @@ export class QueryOrderEngine {
     const result: SortExpression[] = [];
 
     for (const [field, direction] of entries) {
-      if (!Object.hasOwn(spec.fields, field) || !spec.fields[field].sortable) {
-        throw new QuerioError(
-          `Cannot sort by '${field}' (not a sortable field)`,
-          ErrorCode.NON_SORTABLE_FIELD,
-          { field },
-        );
-      }
+      QueryOrderEngine.assertSortableField(field, spec);
       result.push({ field, direction });
     }
 
@@ -45,6 +39,16 @@ export class QueryOrderEngine {
   }
 
   // ── internal ────────────────────────────────────────────────────────────
+
+  private static assertSortableField(field: string, spec: ResourceQueryDefinition): void {
+    if (!Object.hasOwn(spec.fields, field) || !spec.fields[field].sortable) {
+      throw new QuerioError(
+        `Cannot sort by '${field}' (not a sortable field)`,
+        ErrorCode.NON_SORTABLE_FIELD,
+        { field },
+      );
+    }
+  }
 
   private static parseCommaSeparated(raw: string, spec: ResourceQueryDefinition): SortExpression[] {
     const parts = raw
@@ -61,13 +65,7 @@ export class QueryOrderEngine {
         throw new QuerioError('Empty sort field in sort parameter', ErrorCode.EMPTY_SORT_FIELD);
       }
 
-      if (!Object.hasOwn(spec.fields, field) || !spec.fields[field].sortable) {
-        throw new QuerioError(
-          `Cannot sort by '${field}' (not a sortable field)`,
-          ErrorCode.NON_SORTABLE_FIELD,
-          { field },
-        );
-      }
+      QueryOrderEngine.assertSortableField(field, spec);
 
       result.push({ field, direction });
     }

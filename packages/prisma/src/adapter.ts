@@ -54,8 +54,33 @@ const OPERATOR_MAP: Record<
   isNotNull: () => ({ not: null }),
 };
 
+/**
+ * Prisma's `mode: 'insensitive'` is only supported on PostgreSQL, CockroachDB,
+ * and MySQL — SQL Server and SQLite reject it at runtime. `caseSensitive`
+ * defaults to `false`, so every substring filter and search term emits
+ * `mode` and will throw on those providers. Call `.caseSensitive()` on string
+ * fields when targeting unsupported providers, or gate the adapter by provider.
+ */
 function modeClause(caseSensitive?: boolean): Record<string, string> {
   return caseSensitive ? {} : { mode: 'insensitive' };
+}
+
+/**
+ * Define an own key without tripping the `__proto__` setter. Adapters treat
+ * `ResourceQuery` as trusted input, but a hand-built query with a `__proto__`
+ * field name would otherwise silently corrupt the produced where object.
+ */
+function setOwnWhereField(
+  target: Record<string, Record<string, unknown>>,
+  key: string,
+  value: Record<string, unknown>,
+): void {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 }
 
 /**
@@ -83,7 +108,7 @@ function buildScalarWhere(filters: FilterExpression[]): Record<string, unknown> 
   if (!hasMultiOpField) {
     const where: Record<string, Record<string, unknown>> = {};
     for (const [field, clauses] of perField) {
-      where[field] = clauses[0];
+      setOwnWhereField(where, field, clauses[0]);
     }
     return where;
   }

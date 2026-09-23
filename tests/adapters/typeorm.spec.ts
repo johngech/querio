@@ -50,6 +50,16 @@ describe('TypeORM Adapter', () => {
         { age: And(MoreThanOrEqual(18), LessThan(65)) },
       ],
       [
+        'eq + substring on same field wraps raw value in Equal()',
+        {
+          filters: [
+            { field: 'name', operator: 'eq', value: 'X' },
+            { field: 'name', operator: 'contains', value: 'abe', caseSensitive: true },
+          ],
+        },
+        { name: And(Equal('X'), Like('%abe%')) },
+      ],
+      [
         'null equality',
         { filters: [{ field: 'email', operator: 'eq', value: null }] },
         { email: IsNull() },
@@ -139,6 +149,37 @@ describe('TypeORM Adapter', () => {
       }
     });
 
+    it('preserves an own __proto__ field key without polluting prototypes', () => {
+      const before = ({} as Record<string, unknown>).pollutionProbe;
+      const where = typeormQueryAdapter.buildWhere(
+        makeQuery({
+          filters: [
+            { field: '__proto__', operator: 'eq', value: 'x' },
+            { field: 'name', operator: 'eq', value: 'ok' },
+          ],
+          relations: [
+            {
+              relation: '__proto__.meta',
+              filters: [{ field: 'tag', operator: 'eq', value: 't' }],
+            },
+          ],
+        }),
+      );
+
+      expect(where).toBeDefined();
+      expect(Object.hasOwn(where as Record<string, unknown>, '__proto__')).toBe(true);
+      expect(Object.hasOwn(where as Record<string, unknown>, 'name')).toBe(true);
+      // Nested relation value sits under the own `__proto__` key.
+      const protoValue = Object.getOwnPropertyDescriptor(
+        where as Record<string, unknown>,
+        '__proto__',
+      );
+      expect(protoValue?.value).toEqual({ meta: { tag: 't' } });
+      // No prototype pollution anywhere.
+      expect(({} as Record<string, unknown>).pollutionProbe).toBe(before);
+      expect((Object.prototype as Record<string, unknown>).pollutionProbe).toBeUndefined();
+    });
+
     it('builds relation filter', () => {
       expect(
         typeormQueryAdapter.buildWhere(
@@ -221,6 +262,18 @@ describe('TypeORM Adapter', () => {
         expect(typeormQueryAdapter.buildOrderBy(sort)).toEqual(expected);
       });
     }
+
+    it('preserves a __proto__ sort key as an own property', () => {
+      const orderBy = typeormQueryAdapter.buildOrderBy([
+        { field: '__proto__', direction: 'desc' },
+        { field: 'name', direction: 'asc' },
+      ]);
+      expect(Object.hasOwn(orderBy as Record<string, unknown>, '__proto__')).toBe(true);
+      expect(
+        Object.getOwnPropertyDescriptor(orderBy as Record<string, unknown>, '__proto__')?.value,
+      ).toBe('DESC');
+      expect(Object.keys(orderBy as object).sort()).toEqual(['__proto__', 'name']);
+    });
   });
 
   describe('buildSkipTake', () => {

@@ -22,6 +22,21 @@ export interface QueryDefinition extends ResourceQueryDefinition {
   parse(params: QueryParams): ResourceQuery;
 }
 
+/**
+ * Define an own property without tripping the `__proto__` setter. A plain
+ * `target[key] = value` where key is `__proto__` silently mutates the object's
+ * prototype and drops the key entirely — so a field legally named `__proto__`
+ * (or a similarly hostile key) would vanish from the definition.
+ */
+function defineOwnProperty(target: Record<string, unknown>, key: string, value: unknown): void {
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+}
+
 function resolveFields(fields: Record<string, QueryField>): Record<string, FilterFieldSpec> {
   const resolved: Record<string, FilterFieldSpec> = {};
   for (const [name, value] of Object.entries(fields)) {
@@ -38,7 +53,7 @@ function resolveFields(fields: Record<string, QueryField>): Record<string, Filte
     Object.freeze(spec);
     if (Array.isArray(spec.operators)) Object.freeze(spec.operators);
     if (Array.isArray(spec.enumValues)) Object.freeze(spec.enumValues);
-    resolved[name] = spec;
+    defineOwnProperty(resolved, name, spec);
   }
   return resolved;
 }
@@ -55,7 +70,7 @@ function resolveRelations(
       relations: resolveRelations(relation.relations),
     };
     Object.freeze(spec);
-    resolved[name] = spec;
+    defineOwnProperty(resolved, name, spec);
   }
   return resolved;
 }

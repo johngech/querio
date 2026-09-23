@@ -258,6 +258,20 @@ describe('QueryWhereEngine', () => {
       ['contains with empty value', { firstName: { contains: '' } }, 'must not be empty'],
       ['startsWith with whitespace', { firstName: { startsWith: '   ' } }, 'must not be empty'],
       ['contains with missing value', { firstName: { contains: undefined } }, 'must not be empty'],
+      [
+        'object value for scalar operator',
+        { firstName: { eq: { nested: 'x' } } },
+        'expected a scalar value',
+      ],
+      ['array value for scalar operator', { firstName: { eq: ['a'] } }, 'expected a scalar value'],
+      [
+        'object value for scalar in operator',
+        { firstName: { in: [{ nested: 'x' }] } },
+        'expected a scalar value',
+      ],
+      ['non-ISO date format', { createdAt: '01/15/2026' }, 'Invalid date value'],
+      ['bare-year date format', { createdAt: '2026' }, 'Invalid date value'],
+      ['epoch-like date format', { createdAt: '0' }, 'Invalid date value'],
     ];
 
     for (const [label, input, message] of errorCases) {

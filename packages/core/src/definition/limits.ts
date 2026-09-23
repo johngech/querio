@@ -38,7 +38,7 @@ export interface ResolvedQueryLimits {
 }
 
 function buildResolvedLimits(limits: ResourceQueryLimits): ResolvedQueryLimits {
-  return {
+  const resolved: ResolvedQueryLimits = {
     maxPage: limits.maxPage ?? DEFAULT_MAX_PAGE,
     maxLimit: limits.maxLimit ?? DEFAULT_MAX_LIMIT,
     defaultLimit: limits.defaultLimit ?? DEFAULT_LIMIT,
@@ -46,6 +46,10 @@ function buildResolvedLimits(limits: ResourceQueryLimits): ResolvedQueryLimits {
     maxNestingDepth: limits.maxNestingDepth ?? DEFAULT_MAX_NESTING_DEPTH,
     search: { ...DEFAULT_SEARCH_LIMITS, ...limits.search },
   };
+  // Frozen so the shared cached instance (see resolveLimits) cannot be mutated
+  // by one caller and change parsing behavior for everyone else.
+  Object.freeze(resolved.search);
+  return Object.freeze(resolved);
 }
 
 /** Shared resolved limits used when the caller supplies no per-query limits. */
@@ -54,7 +58,16 @@ const DEFAULT_RESOLVED_LIMITS: ResolvedQueryLimits = Object.freeze(buildResolved
 /** Caches resolved limits per definition so an identical limits object is resolved once. */
 const limitsCache = new WeakMap<ResourceQueryLimits, ResolvedQueryLimits>();
 
-/** Merge user-provided limits with the library defaults. */
+/**
+ * Merge user-provided limits with the library defaults.
+ *
+ * The resolved object is frozen and cached per `limits` identity. Defaults cap
+ * a single query at `DEFAULT_MAX_PAGE` pages of `DEFAULT_MAX_LIMIT` rows
+ * (skip up to ~10^8) and `DEFAULT_MAX_FILTERS` scalar filters — tune these if
+ * the parsed queries come from untrusted clients, or the downstream DB query
+ * (huge offset, many OR conditions) can degrade. Equivalent limits objects
+ * share one frozen instance, so callers must never mutate the result.
+ */
 export function resolveLimits(limits?: ResourceQueryLimits): ResolvedQueryLimits {
   if (!limits) return DEFAULT_RESOLVED_LIMITS;
   let resolved = limitsCache.get(limits);

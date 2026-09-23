@@ -240,4 +240,32 @@ describe('defineQuery', () => {
     expect(query.fields.name.type).toBe('string');
     expect(query.fields.name.operators).toEqual(['eq', 'neq']);
   });
+
+  it('should preserve a field literally named __proto__', () => {
+    // A computed key is required — `__proto__: value` in an object literal is
+    // prototype-setter syntax and would never become an own property.
+    const query = defineQuery({
+      fields: { ['__proto__']: q.string(), name: q.string() },
+      relations: {
+        meta: {
+          fields: { ['__proto__']: q.string() },
+        },
+      },
+    });
+
+    expect(Object.hasOwn(query.fields, '__proto__')).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(query.fields, '__proto__')?.value.type).toBe('string');
+    expect(
+      Object.getOwnPropertyDescriptor(query.relations!.meta.fields, '__proto__')?.value.type,
+    ).toBe('string');
+
+    // JSON.parse produces a genuine own `__proto__` key.
+    const filter = JSON.parse('{"__proto__": "x", "name": "y"}') as Record<string, unknown>;
+    const parsed = query.parse({ filter });
+    expect(parsed.filters.map((f) => f.field).sort()).toEqual(['__proto__', 'name']);
+
+    const relationFilter = JSON.parse('{"meta": {"__proto__": "t"}}') as Record<string, unknown>;
+    const parsedRelation = query.parse({ filter: relationFilter });
+    expect(parsedRelation.relations[0].filters[0].field).toBe('__proto__');
+  });
 });

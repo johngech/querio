@@ -193,18 +193,22 @@ function quoteIdentifier(name: string): string {
 }
 
 /**
- * Serialize a Drizzle `SQL` chunk into a plain SQL string.
+ * DEBUG ONLY — serialize a Drizzle `SQL` chunk into a plain SQL string.
  *
  * The adapter's `where`/`orderBy` are Drizzle `SQL` fragments — you can pass
- * them straight to `.where()` / `.orderBy()`. When you need a raw SQL string
- * instead (e.g. for `sql`-tagged custom queries or debugging), this helper
- * flattens the chunk into its textual form. Parameter values are appended
- * literally (matching the fragment's own rendering); build parameterized
- * queries with drizzle's `sql` tag for untrusted values.
+ * them straight to `.where()` / `.orderBy()`. When you need a human-readable
+ * dump (e.g. for tests, logging, or eyeballing a query) this helper flattens
+ * the chunk into its textual form.
+ *
+ * WARNING: the returned string is NOT runnable/injectable-safe SQL. Parameter
+ * values are inlined literally without quoting or escaping (matching the
+ * fragment's own rendering), so the text is only meaningful as a debug
+ * representation. NEVER execute it, and never feed it back into `sql.raw()`.
+ * Build parameterized queries with drizzle's `sql` tag for untrusted values.
  *
  * ```ts
  * import { toDrizzleSQL } from '@querio/drizzle';
- * const sqlText = toDrizzleSQL(where);
+ * const sqlText = toDrizzleSQL(where); // debug print only
  * ```
  */
 export function toDrizzleSQL(where: SQL | undefined): string | undefined {

@@ -20,6 +20,15 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NUMBER_REGEX = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 /**
+ * ISO 8601 wire format: date-only (`2026-01-15`) or full timestamp
+ * (`2026-01-15T10:30:00.000Z`, optional offset / space separator). Rejects the
+ * free-form formats `new Date()` silently accepts (`01/05/2026`, bare `2026`,
+ * epoch-like `0`), which would otherwise be interpreted as valid dates.
+ */
+const ISO_DATE_REGEX =
+  /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[Zz]|[+-]\d{2}:?\d{2})?)?$/;
+
+/**
  * Cached `Set` lookups so per-parse filter validation stays fast without
  * mutating the public field specs (which stay plain arrays for consumers).
  */
@@ -85,6 +94,13 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
     return num;
   },
   date: (str, _spec, field) => {
+    if (!ISO_DATE_REGEX.test(str.trim())) {
+      throw new QuerioError(
+        `Invalid date value '${str}' for field '${field}' (expected ISO 8601)`,
+        ErrorCode.INVALID_DATE,
+        { field },
+      );
+    }
     const date = new Date(str);
     if (Number.isNaN(date.getTime())) {
       throw new QuerioError(
@@ -455,6 +471,19 @@ export class QueryWhereEngine {
     partial = false,
   ): unknown {
     if (raw === null || raw === undefined) return null;
+
+    // Reject objects/arrays for scalar operators instead of stringifying them
+    // into `[object Object]` (which would silently pass validation).
+    const isScalar = typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean';
+    if (!isScalar) {
+      throw new QuerioError(
+        `Invalid value for field '${field}' (expected a scalar value, got ${
+          Array.isArray(raw) ? 'an array' : 'an object'
+        })`,
+        ErrorCode.INVALID_FILTER_VALUE,
+        { field },
+      );
+    }
 
     const str = String(raw);
     const parsed = TYPE_PARSERS[fieldSpec.type](str, fieldSpec, field);
