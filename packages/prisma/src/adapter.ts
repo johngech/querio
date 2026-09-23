@@ -1,11 +1,11 @@
 import type {
   FilterExpression,
-  FilterOperator,
   RelationFilterExpression,
   ResourceQuery,
   SearchQuery,
   SortExpression,
 } from '@querio/core';
+import { type FilterOperator, nullClauseFor } from '@querio/core';
 import type { MappableAdapter } from '@querio/core/compiler';
 import { QueryMapper } from '@querio/core/compiler';
 
@@ -30,10 +30,10 @@ const OPERATOR_MAP: Record<
   FilterOperator,
   (value: unknown, caseSensitive?: boolean) => Record<string, unknown>
 > = {
-  eq: (value) => (value === null ? { equals: null } : { equals: value }),
-  neq: (value) => (value === null ? { not: null } : { not: value }),
+  eq: (value) => (nullClauseFor('eq', value) ? { equals: null } : { equals: value }),
+  neq: (value) => (nullClauseFor('neq', value) ? { not: null } : { not: value }),
   in: (value) => ({ in: value }),
-  nin: (value) => ({ notIn: value }),
+  notIn: (value) => ({ notIn: value }),
   gt: (value) => ({ gt: value }),
   gte: (value) => ({ gte: value }),
   lt: (value) => ({ lt: value }),
@@ -49,21 +49,43 @@ function modeClause(caseSensitive?: boolean): Record<string, string> {
   return caseSensitive ? {} : { mode: 'insensitive' };
 }
 
+/**
+ * Build a Prisma where object from filter expressions, grouping conditions per field.
+ *
+ * A single operator per field renders as the compact merged shape (the
+ * property keys are Prisma's own WhereInput names, e.g. `{ equals: 'ACTIVE' }`
+ * — not Querio operator ids). When a field carries two or more operators,
+ * they are emitted as separate objects under `AND` — Prisma cannot always
+ * combine arbitrary operators (e.g. `greaterThanOrEqual` + `equals`) in one
+ * field filter, whereas an `AND` list merges them deterministically.
+ */
 function buildScalarWhere(filters: FilterExpression[]): Record<string, unknown> {
-  const where: Record<string, Record<string, unknown>> = {};
+  const perField = new Map<string, Record<string, unknown>[]>();
 
   for (const f of filters) {
     const clause = OPERATOR_MAP[f.operator](f.value, f.caseSensitive);
-    const existing = where[f.field];
-
-    if (existing) {
-      where[f.field] = { ...existing, ...clause };
-    } else {
-      where[f.field] = clause;
-    }
+    const list = perField.get(f.field) ?? [];
+    list.push(clause);
+    perField.set(f.field, list);
   }
 
-  return where;
+  const hasMultiOpField = [...perField.values()].some((list) => list.length > 1);
+
+  if (!hasMultiOpField) {
+    const where: Record<string, Record<string, unknown>> = {};
+    for (const [field, clauses] of perField) {
+      where[field] = clauses[0];
+    }
+    return where;
+  }
+
+  const andConditions: Record<string, unknown>[] = [];
+  for (const [field, clauses] of perField) {
+    for (const clause of clauses) {
+      andConditions.push({ [field]: clause });
+    }
+  }
+  return { AND: andConditions };
 }
 
 function searchToWhere(search: SearchQuery): Record<string, unknown> {
@@ -72,12 +94,11 @@ function searchToWhere(search: SearchQuery): Record<string, unknown> {
   for (const term of search.terms) {
     const targetFields = term.field ? [term.field] : search.fields;
 
+    // Phrase and contains both compile to a contiguous-substring match; prefix
+    // uses a starts-with match.
+    const op = term.match === 'prefix' ? 'startsWith' : 'contains';
     for (const f of targetFields) {
-      if (term.match === 'prefix') {
-        fieldClauses.push({ [f]: { startsWith: term.value, ...modeClause(term.caseSensitive) } });
-      } else {
-        fieldClauses.push({ [f]: { contains: term.value, ...modeClause(term.caseSensitive) } });
-      }
+      fieldClauses.push({ [f]: { [op]: term.value, ...modeClause(term.caseSensitive) } });
     }
   }
 
@@ -122,7 +143,7 @@ function toWhere(query: ResourceQuery): PrismaWhereInput | undefined {
  * Translates Querio's application-level queries to Prisma-compatible
  * `where`, `orderBy`, and `skip/take` arguments.
  */
-export const prismaAdapter = {
+export const prismaQueryAdapter = {
   /** Map a parsed query to `{ where, orderBy, skip, take }` for Prisma. */
   map(query: ResourceQuery): {
     where: PrismaWhereInput | undefined;
@@ -130,7 +151,7 @@ export const prismaAdapter = {
     skip: number;
     take: number;
   } {
-    return QueryMapper.map(query, prismaAdapter);
+    return QueryMapper.map(query, prismaQueryAdapter);
   },
 
   buildWhere(query: ResourceQuery): PrismaWhereInput | undefined {

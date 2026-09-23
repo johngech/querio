@@ -1,2 +1,2 @@
 export type { TypeORMOrderBy, TypeORMWhere } from './adapter';
-export { typeormAdapter } from './adapter';
+export { typeormQueryAdapter } from './adapter';

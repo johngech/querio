@@ -1,56 +1,60 @@
-import type {
-  FilterOperator,
-  RelationFilterExpression,
-  ResourceQuery,
-  SearchQuery,
-  SortExpression,
+import {
+  buildLikePattern,
+  ErrorCode,
+  type FilterOperator,
+  isStringOperator,
+  type LikeMatch,
+  nullClauseFor,
+  QuerioError,
+  type RelationFilterExpression,
+  type ResourceQuery,
+  type SearchQuery,
+  type SortExpression,
 } from '@querio/core';
 import type { MappableAdapter } from '@querio/core/compiler';
 import { QueryMapper } from '@querio/core/compiler';
 import { and, or, type SQL, sql } from 'drizzle-orm';
 
-// ── Drizzle types ────────────────────────────────────────────────────────────
-
-/** Drizzle-compatible OrderBy item. */
-interface DrizzleOrderByItem {
-  column: string;
-  order: 'asc' | 'desc';
-}
-
 // ── Drizzle Adapter ──────────────────────────────────────────────────────
 
 /**
  * Adapter for Drizzle ORM.
- * Translates Querio's application-level queries to Drizzle-compatible
- * where, orderBy, and skip/take arguments.
+ * Translates Querio's application-level queries into Drizzle-compatible
+ * `where` and `orderBy` arguments (both are `SQL` fragments), plus `skip`/`take`.
+ *
+ * Usage:
+ * ```ts
+ * const { where, orderBy, skip, take } = drizzleQueryAdapter.map(query);
+ * const rows = await db.select().from(users).where(where).orderBy(...(orderBy ?? [])).limit(take).offset(skip);
+ * ```
+ *
+ * Relation filters assume the caller joined each relation under a table alias
+ * matching the relation path (e.g. `db.select().from(users).leftJoin(member, ...)`).
  */
-export const drizzleAdapter = {
+export const drizzleQueryAdapter = {
   /** Map a parsed query to `{ where, orderBy, skip, take }` for Drizzle. */
   map(query: ResourceQuery): {
     where: SQL | undefined;
-    orderBy: DrizzleOrderByItem[] | undefined;
+    orderBy: SQL[] | undefined;
     skip: number;
     take: number;
   } {
-    return QueryMapper.map(query, drizzleAdapter);
+    return QueryMapper.map(query, drizzleQueryAdapter);
   },
 
   buildWhere(query: ResourceQuery): SQL | undefined {
     return buildWhereFromQuery(query);
   },
 
-  buildOrderBy(sort: SortExpression[]): DrizzleOrderByItem[] | undefined {
+  buildOrderBy(sort: SortExpression[]): SQL[] | undefined {
     if (sort.length === 0) return undefined;
-    return sort.map((s) => ({
-      column: s.field,
-      order: s.direction,
-    }));
+    return sort.map((s) => sql.raw(`${quoteIdentifier(s.field)} ${s.direction.toUpperCase()}`));
   },
 
   buildSkipTake(page: number, limit: number): { skip: number; take: number } {
     return QueryMapper.toSkipTake(page, limit);
   },
-} satisfies MappableAdapter<SQL, DrizzleOrderByItem[]>;
+} satisfies MappableAdapter<SQL, SQL[]>;
 
 // ── Internal helpers ─────────────────────────────────────────────────────
 
@@ -91,6 +95,8 @@ function buildSearchCondition(search: SearchQuery | undefined): SQL | undefined 
   const parts: SQL[] = [];
   for (const term of search.terms) {
     const targetFields = term.field ? [term.field] : search.fields;
+    // Phrase and contains both compile to a contiguous-substring (LIKE) match;
+    // prefix uses a starts-with match.
     const op = term.match === 'prefix' ? 'startsWith' : 'contains';
     for (const f of targetFields) {
       parts.push(conditionFor(f, op, term.value, term.caseSensitive));
@@ -112,60 +118,63 @@ function conditionFor(
   const col = sql.raw(colName);
   // Case-insensitive string matching uses LOWER() on both sides — portable
   // across SQLite, PostgreSQL, and MySQL without database-specific collations.
-  // Only applied to the LIKE family (string-only operators); `caseSensitive`
-  // is emitted on every filter, so eq/neq must stay plain to avoid LOWER() on
+  // Only applied to the string (LIKE) family; `caseSensitive` is emitted on
+  // every filter, so equal/notEqual must stay plain to avoid LOWER() on
   // numeric/date columns.
   // LIKE always emits ESCAPE '\' so user-supplied % / _ are treated literally —
   // required because SQLite has no implicit backslash escaping (unlike PG/MySQL).
-  const likeInsensitive =
-    !caseSensitive &&
-    (operator === 'contains' || operator === 'startsWith' || operator === 'endsWith');
+  const likeInsensitive = !caseSensitive && isStringOperator(operator);
   const likeTarget = likeInsensitive ? sql`LOWER(${col})` : sql`${col}`;
-  const likeTerm = (val: unknown): string => {
-    const term = String(val);
-    return likeInsensitive ? term.toLowerCase() : term;
-  };
+  const pattern: string | undefined = isStringOperator(operator)
+    ? buildLikePattern(value, matchFor(operator), likeInsensitive)
+    : undefined;
 
   const build = OPERATOR_SQL[operator];
   if (!build) {
-    throw new Error(`Unsupported operator '${operator}'`);
+    throw new QuerioError(`Unsupported operator '${operator}'`, ErrorCode.UNSUPPORTED_OPERATOR, {
+      operator,
+    });
   }
-  return build({ col, likeTarget, likeTerm, value });
+  return build({ col, likeTarget, pattern, value });
+}
+
+function matchFor(operator: FilterOperator): LikeMatch {
+  switch (operator) {
+    case 'startsWith':
+      return 'startsWith';
+    case 'endsWith':
+      return 'endsWith';
+    default:
+      return 'contains';
+  }
 }
 
 interface OperatorContext {
   col: SQL;
   likeTarget: SQL;
-  likeTerm: (val: unknown) => string;
+  pattern?: string;
   value?: unknown;
 }
 
 const OPERATOR_SQL: Record<FilterOperator, (ctx: OperatorContext) => SQL> = {
-  eq: ({ col, value }) => (value === null ? sql`${col} IS NULL` : sql`${col} = ${value}`),
-  neq: ({ col, value }) => (value === null ? sql`${col} IS NOT NULL` : sql`${col} != ${value}`),
+  eq: ({ col, value }) =>
+    nullClauseFor('eq', value) ? sql`${col} IS NULL` : sql`${col} = ${value}`,
+  neq: ({ col, value }) =>
+    nullClauseFor('neq', value) ? sql`${col} IS NOT NULL` : sql`${col} != ${value}`,
   gt: ({ col, value }) => sql`${col} > ${value}`,
   gte: ({ col, value }) => sql`${col} >= ${value}`,
   lt: ({ col, value }) => sql`${col} < ${value}`,
   lte: ({ col, value }) => sql`${col} <= ${value}`,
-  contains: ({ likeTarget, likeTerm, value }) => {
-    const pattern = `%${escapeLike(likeTerm(value))}%`;
-    return sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`;
-  },
-  startsWith: ({ likeTarget, likeTerm, value }) => {
-    const pattern = `${escapeLike(likeTerm(value))}%`;
-    return sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`;
-  },
-  endsWith: ({ likeTarget, likeTerm, value }) => {
-    const pattern = `%${escapeLike(likeTerm(value))}`;
-    return sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`;
-  },
+  contains: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
+  startsWith: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
+  endsWith: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
   in: ({ col, value }) => {
     const arr = value as unknown[];
     if (arr.length === 0) return sql`1=0`;
     const chunks = arr.map((v) => sql`${v}`);
     return sql`${col} IN (${sql.join(chunks, sql`, `)})`;
   },
-  nin: ({ col, value }) => {
+  notIn: ({ col, value }) => {
     const arr = value as unknown[];
     if (arr.length === 0) return sql`1=1`;
     const chunks = arr.map((v) => sql`${v}`);
@@ -175,22 +184,57 @@ const OPERATOR_SQL: Record<FilterOperator, (ctx: OperatorContext) => SQL> = {
   isNotNull: ({ col }) => sql`${col} IS NOT NULL`,
 };
 
-export type { DrizzleOrderByItem };
-
 const SAFE_IDENTIFIER = /^[a-zA-Z_]\w*$/;
 
+/** Quote an identifier only when it is unsafe (reserved words, unusual names). */
 function quoteIdentifier(name: string): string {
-  if (!SAFE_IDENTIFIER.test(name)) {
-    throw new Error(`Invalid identifier '${name}' in Drizzle where clause`);
-  }
-  return name;
+  if (SAFE_IDENTIFIER.test(name)) return name;
+  return `"${name.replaceAll('"', '""')}"`;
 }
 
-/** Escape LIKE wildcards so user input is treated literally. */
-function escapeLike(value: unknown): string {
-  const backslash = String.raw`\\`.charAt(0);
-  return String(value)
-    .replaceAll(backslash, String.raw`\\`)
-    .replaceAll('%', String.raw`\%`)
-    .replaceAll('_', String.raw`\_`);
+/**
+ * Serialize a Drizzle `SQL` chunk into a plain SQL string.
+ *
+ * The adapter's `where`/`orderBy` are Drizzle `SQL` fragments — you can pass
+ * them straight to `.where()` / `.orderBy()`. When you need a raw SQL string
+ * instead (e.g. for `sql`-tagged custom queries or debugging), this helper
+ * flattens the chunk into its textual form. Parameter values are appended
+ * literally (matching the fragment's own rendering); build parameterized
+ * queries with drizzle's `sql` tag for untrusted values.
+ *
+ * ```ts
+ * import { toDrizzleSQL } from '@querio/drizzle';
+ * const sqlText = toDrizzleSQL(where);
+ * ```
+ */
+export function toDrizzleSQL(where: SQL | undefined): string | undefined {
+  if (!where) return undefined;
+  const chunks: string[] = [];
+  flattenChunks(where.queryChunks, chunks);
+  return chunks.join('');
+}
+
+function flattenChunks(chunks: readonly unknown[], out: string[]): void {
+  for (const chunk of chunks) {
+    if (typeof chunk === 'string') {
+      out.push(chunk);
+    } else if (isSqlChunk(chunk)) {
+      flattenChunks(chunk.queryChunks, out);
+    } else if (
+      chunk !== null &&
+      typeof chunk === 'object' &&
+      'value' in chunk &&
+      Array.isArray((chunk as { value: unknown }).value)
+    ) {
+      out.push(String((chunk as { value: unknown[] }).value[0] ?? ''));
+    }
+  }
+}
+
+function isSqlChunk(value: unknown): value is { queryChunks: readonly unknown[] } {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    Array.isArray((value as { queryChunks?: unknown }).queryChunks)
+  );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { And, ILike, In, IsNull, LessThan, Like, MoreThanOrEqual, Not } from 'typeorm';
+import { And, Equal, ILike, In, IsNull, LessThan, Like, MoreThanOrEqual, Not } from 'typeorm';
 import type { ResourceQuery } from '../../packages/core/src/index';
-import { typeormAdapter } from '../../packages/typeorm/src/index';
+import { typeormQueryAdapter } from '../../packages/typeorm/src/index';
 
 describe('TypeORM Adapter', () => {
   type WhereExpect = Record<string, unknown> | Record<string, unknown>[] | undefined;
@@ -16,7 +16,7 @@ describe('TypeORM Adapter', () => {
 
   describe('buildWhere', () => {
     it('returns undefined for empty query', () => {
-      expect(typeormAdapter.buildWhere(makeQuery())).toBeUndefined();
+      expect(typeormQueryAdapter.buildWhere(makeQuery())).toBeUndefined();
     });
 
     const filterCases: [string, Partial<ResourceQuery>, WhereExpect][] = [
@@ -32,7 +32,7 @@ describe('TypeORM Adapter', () => {
       ],
       [
         'not-in filter',
-        { filters: [{ field: 'status', operator: 'nin', value: ['INACTIVE'] }] },
+        { filters: [{ field: 'status', operator: 'notIn', value: ['INACTIVE'] }] },
         { status: Not(In(['INACTIVE'])) },
       ],
       [
@@ -59,7 +59,7 @@ describe('TypeORM Adapter', () => {
 
     for (const [label, queryOverrides, expected] of filterCases) {
       it(`builds ${label}`, () => {
-        expect(typeormAdapter.buildWhere(makeQuery(queryOverrides))).toEqual(expected);
+        expect(typeormQueryAdapter.buildWhere(makeQuery(queryOverrides))).toEqual(expected);
       });
     }
 
@@ -105,14 +105,14 @@ describe('TypeORM Adapter', () => {
 
       for (const [label, queryOverrides, expected] of caseSensitiveCases) {
         it(label, () => {
-          expect(typeormAdapter.buildWhere(makeQuery(queryOverrides))).toEqual(expected);
+          expect(typeormQueryAdapter.buildWhere(makeQuery(queryOverrides))).toEqual(expected);
         });
       }
     });
 
     it('builds relation filter', () => {
       expect(
-        typeormAdapter.buildWhere(
+        typeormQueryAdapter.buildWhere(
           makeQuery({
             relations: [
               {
@@ -126,7 +126,7 @@ describe('TypeORM Adapter', () => {
     });
 
     it('builds search as OR-array of where alternatives', () => {
-      const result = typeormAdapter.buildWhere(
+      const result = typeormQueryAdapter.buildWhere(
         makeQuery({
           search: {
             raw: 'abebe',
@@ -139,7 +139,7 @@ describe('TypeORM Adapter', () => {
     });
 
     it('combines filters with search via AND over each alternative', () => {
-      const result = typeormAdapter.buildWhere(
+      const result = typeormQueryAdapter.buildWhere(
         makeQuery({
           filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
           search: {
@@ -154,11 +154,25 @@ describe('TypeORM Adapter', () => {
         { status: 'ACTIVE', lastName: ILike('%abebe%') },
       ]);
     });
+
+    it('ANDs the filter and search when both target the same field', () => {
+      const result = typeormQueryAdapter.buildWhere(
+        makeQuery({
+          filters: [{ field: 'name', operator: 'eq', value: 'X' }],
+          search: {
+            raw: 'abebe',
+            terms: [{ value: 'abebe', match: 'contains' }],
+            fields: ['name'],
+          },
+        }),
+      );
+      expect(result).toEqual({ name: And(Equal('X'), ILike('%abebe%')) });
+    });
   });
 
   describe('buildOrderBy', () => {
     it('returns undefined for empty sort', () => {
-      expect(typeormAdapter.buildOrderBy([])).toBeUndefined();
+      expect(typeormQueryAdapter.buildOrderBy([])).toBeUndefined();
     });
 
     const sortCases: [string, ResourceQuery['sort'], Record<string, 'ASC' | 'DESC'>][] = [
@@ -175,7 +189,7 @@ describe('TypeORM Adapter', () => {
 
     for (const [label, sort, expected] of sortCases) {
       it(`builds ${label}`, () => {
-        expect(typeormAdapter.buildOrderBy(sort)).toEqual(expected);
+        expect(typeormQueryAdapter.buildOrderBy(sort)).toEqual(expected);
       });
     }
   });
@@ -188,14 +202,14 @@ describe('TypeORM Adapter', () => {
 
     for (const [page, limit, expected] of skipTakeCases) {
       it(`calculates skip/take for page=${page}, limit=${limit}`, () => {
-        expect(typeormAdapter.buildSkipTake(page, limit)).toEqual(expected);
+        expect(typeormQueryAdapter.buildSkipTake(page, limit)).toEqual(expected);
       });
     }
   });
 
   describe('integration with adapter.map', () => {
     it('maps complete query', () => {
-      const result = typeormAdapter.map(
+      const result = typeormQueryAdapter.map(
         makeQuery({
           filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
           sort: [{ field: 'createdAt', direction: 'desc' }],
@@ -212,7 +226,7 @@ describe('TypeORM Adapter', () => {
   describe('nested relation filters', () => {
     it('builds nested relation filters from dotted paths', () => {
       expect(
-        typeormAdapter.buildWhere(
+        typeormQueryAdapter.buildWhere(
           makeQuery({
             relations: [
               {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { ResourceQuery } from '../../packages/core/src/index';
-import { drizzleAdapter } from '../../packages/drizzle/src/index';
+import { drizzleQueryAdapter, toDrizzleSQL } from '../../packages/drizzle/src/index';
 
 interface DrizzleSQL {
   queryChunks: unknown[];
@@ -44,11 +44,11 @@ describe('Drizzle Adapter', () => {
 
   describe('buildWhere', () => {
     it('returns undefined for empty query', () => {
-      expect(drizzleAdapter.buildWhere(makeQuery())).toBeUndefined();
+      expect(drizzleQueryAdapter.buildWhere(makeQuery())).toBeUndefined();
     });
 
     it('builds equality filter', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({
           filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
         }),
@@ -57,7 +57,7 @@ describe('Drizzle Adapter', () => {
     });
 
     it('builds relation filter', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({
           relations: [
             {
@@ -73,7 +73,7 @@ describe('Drizzle Adapter', () => {
 
   describe('LIKE ESCAPE (portable across SQLite)', () => {
     it('emits ESCAPE for contains', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({ filters: [{ field: 'name', operator: 'contains', value: '100%' }] }),
       );
       const str = sqlString(where!);
@@ -83,7 +83,7 @@ describe('Drizzle Adapter', () => {
     });
 
     it('emits ESCAPE for startsWith', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({ filters: [{ field: 'name', operator: 'startsWith', value: 'abe' }] }),
       );
       const str = sqlString(where!);
@@ -91,7 +91,7 @@ describe('Drizzle Adapter', () => {
     });
 
     it('emits ESCAPE for endsWith', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({ filters: [{ field: 'name', operator: 'endsWith', value: 'ebe' }] }),
       );
       const str = sqlString(where!);
@@ -99,7 +99,7 @@ describe('Drizzle Adapter', () => {
     });
 
     it('wraps case-insensitive LIKE columns in LOWER()', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({ filters: [{ field: 'name', operator: 'contains', value: 'abe' }] }),
       );
       expect(sqlString(where!)).toContain('LOWER(name)');
@@ -108,7 +108,7 @@ describe('Drizzle Adapter', () => {
 
   describe('nested relation filters', () => {
     it('builds nested relation filters from dotted paths with quoted identifiers', () => {
-      const where = drizzleAdapter.buildWhere(
+      const where = drizzleQueryAdapter.buildWhere(
         makeQuery({
           relations: [
             { relation: 'org.parent', filters: [{ field: 'name', operator: 'eq', value: 'x' }] },
@@ -121,37 +121,74 @@ describe('Drizzle Adapter', () => {
 
   describe('buildOrderBy', () => {
     it('returns undefined for empty sort', () => {
-      expect(drizzleAdapter.buildOrderBy([])).toBeUndefined();
+      expect(drizzleQueryAdapter.buildOrderBy([])).toBeUndefined();
     });
 
-    const sortCases: [
-      string,
-      ResourceQuery['sort'],
-      { column: string; order: 'asc' | 'desc' }[],
-    ][] = [
-      [
-        'single sort',
-        [{ field: 'createdAt', direction: 'desc' }],
-        [{ column: 'createdAt', order: 'desc' }],
-      ],
+    const sortCases: [string, ResourceQuery['sort'], string[]][] = [
+      ['single sort', [{ field: 'createdAt', direction: 'desc' }], ['createdAt DESC']],
       [
         'multiple sorts',
         [
           { field: 'createdAt', direction: 'desc' },
           { field: 'firstName', direction: 'asc' },
         ],
-        [
-          { column: 'createdAt', order: 'desc' },
-          { column: 'firstName', order: 'asc' },
-        ],
+        ['createdAt DESC', 'firstName ASC'],
       ],
     ];
 
     for (const [label, sort, expected] of sortCases) {
       it(`builds ${label}`, () => {
-        expect(drizzleAdapter.buildOrderBy(sort)).toEqual(expected);
+        const orderBy = drizzleQueryAdapter.buildOrderBy(sort);
+        expect(orderBy).toBeDefined();
+        expect(orderBy!.map((o) => toDrizzleSQL(o))).toEqual(expected);
       });
     }
+  });
+
+  describe('toDrizzleSQL', () => {
+    it('returns undefined for undefined input', () => {
+      expect(toDrizzleSQL(undefined)).toBeUndefined();
+    });
+
+    it('serializes a scalar where clause', () => {
+      const where = drizzleQueryAdapter.buildWhere(
+        makeQuery({ filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }] }),
+      );
+      expect(toDrizzleSQL(where)).toBe('status = ACTIVE');
+    });
+
+    it('serializes relation-qualified identifiers', () => {
+      const where = drizzleQueryAdapter.buildWhere(
+        makeQuery({
+          relations: [
+            { relation: 'org.parent', filters: [{ field: 'name', operator: 'eq', value: 'x' }] },
+          ],
+        }),
+      );
+      expect(toDrizzleSQL(where)).toContain('org.parent.name');
+    });
+
+    it('serializes LIKE escaping', () => {
+      const where = drizzleQueryAdapter.buildWhere(
+        makeQuery({ filters: [{ field: 'name', operator: 'contains', value: '100%' }] }),
+      );
+      expect(toDrizzleSQL(where)).toContain('%100\\%%');
+    });
+
+    it('serializes search OR conditions', () => {
+      const where = drizzleQueryAdapter.buildWhere(
+        makeQuery({
+          search: {
+            raw: 'abe',
+            terms: [{ value: 'abe', match: 'contains' }],
+            fields: ['firstName', 'lastName'],
+          },
+        }),
+      );
+      const str = toDrizzleSQL(where);
+      expect(str).toContain('LOWER(firstName)');
+      expect(str).toContain('LOWER(lastName)');
+    });
   });
 
   describe('buildSkipTake', () => {
@@ -162,14 +199,14 @@ describe('Drizzle Adapter', () => {
 
     for (const [page, limit, expected] of skipTakeCases) {
       it(`calculates skip/take for page=${page}, limit=${limit}`, () => {
-        expect(drizzleAdapter.buildSkipTake(page, limit)).toEqual(expected);
+        expect(drizzleQueryAdapter.buildSkipTake(page, limit)).toEqual(expected);
       });
     }
   });
 
   describe('integration with adapter.map', () => {
     it('maps complete query', () => {
-      const result = drizzleAdapter.map(
+      const result = drizzleQueryAdapter.map(
         makeQuery({
           filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
           sort: [{ field: 'createdAt', direction: 'desc' }],
@@ -177,7 +214,7 @@ describe('Drizzle Adapter', () => {
         }),
       );
       expect(result.where).toBeDefined();
-      expect(result.orderBy).toEqual([{ column: 'createdAt', order: 'desc' }]);
+      expect(result.orderBy!.map((o) => toDrizzleSQL(o))).toEqual(['createdAt DESC']);
       expect(result.skip).toBe(25);
       expect(result.take).toBe(25);
     });

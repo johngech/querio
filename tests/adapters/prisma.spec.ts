@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { ResourceQuery } from '../../packages/core/src/index';
-import { prismaAdapter } from '../../packages/prisma/src/index';
+import { prismaQueryAdapter } from '../../packages/prisma/src/index';
 
 describe('Prisma Adapter', () => {
   const makeQuery = (overrides: Partial<ResourceQuery> = {}): ResourceQuery => ({
@@ -13,12 +13,12 @@ describe('Prisma Adapter', () => {
 
   describe('buildWhere', () => {
     it('returns undefined for empty query', () => {
-      expect(prismaAdapter.buildWhere(makeQuery())).toBeUndefined();
+      expect(prismaQueryAdapter.buildWhere(makeQuery())).toBeUndefined();
     });
 
     it('builds equality filter', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
           }),
@@ -28,7 +28,7 @@ describe('Prisma Adapter', () => {
 
     it('builds relation filter', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             relations: [
               {
@@ -43,7 +43,7 @@ describe('Prisma Adapter', () => {
 
     it('builds search filter', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             search: {
               raw: 'abebe',
@@ -82,7 +82,7 @@ describe('Prisma Adapter', () => {
           { field: 'age', operator: 'gte', value: 18 },
           { field: 'age', operator: 'lt', value: 65 },
         ],
-        { age: { gte: 18, lt: 65 } },
+        { AND: [{ age: { gte: 18 } }, { age: { lt: 65 } }] },
       ],
       [
         'contains (case insensitive)',
@@ -101,7 +101,7 @@ describe('Prisma Adapter', () => {
       ],
       [
         'not-in',
-        [{ field: 'status', operator: 'nin', value: ['INACTIVE'] }],
+        [{ field: 'status', operator: 'notIn', value: ['INACTIVE'] }],
         { status: { notIn: ['INACTIVE'] } },
       ],
       [
@@ -120,13 +120,13 @@ describe('Prisma Adapter', () => {
 
     for (const [label, filters, expected] of scalarOperators) {
       it(`builds ${label}`, () => {
-        expect(prismaAdapter.buildWhere(makeQuery({ filters }))).toEqual(expected);
+        expect(prismaQueryAdapter.buildWhere(makeQuery({ filters }))).toEqual(expected);
       });
     }
 
     it('combines multiple fields with AND', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             filters: [
               { field: 'status', operator: 'eq', value: 'ACTIVE' },
@@ -140,9 +140,50 @@ describe('Prisma Adapter', () => {
       });
     });
 
+    it('renders incompatible operators on the same field as an AND list', () => {
+      expect(
+        prismaQueryAdapter.buildWhere(
+          makeQuery({
+            filters: [
+              { field: 'age', operator: 'gte', value: 18 },
+              { field: 'age', operator: 'isNull' },
+            ],
+          }),
+        ),
+      ).toEqual({ AND: [{ age: { gte: 18 } }, { age: { equals: null } }] });
+      expect(
+        prismaQueryAdapter.buildWhere(
+          makeQuery({
+            filters: [
+              { field: 'name', operator: 'contains', value: 'ab' },
+              { field: 'name', operator: 'eq', value: 'abebe' },
+            ],
+          }),
+        ),
+      ).toEqual({
+        AND: [{ name: { contains: 'ab', mode: 'insensitive' } }, { name: { equals: 'abebe' } }],
+      });
+    });
+
+    it('keeps single-operator fields compact when another field uses two operators', () => {
+      expect(
+        prismaQueryAdapter.buildWhere(
+          makeQuery({
+            filters: [
+              { field: 'status', operator: 'eq', value: 'ACTIVE' },
+              { field: 'age', operator: 'gte', value: 18 },
+              { field: 'age', operator: 'lt', value: 65 },
+            ],
+          }),
+        ),
+      ).toEqual({
+        AND: [{ status: { equals: 'ACTIVE' } }, { age: { gte: 18 } }, { age: { lt: 65 } }],
+      });
+    });
+
     it('combines scalar and relation filters', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
             relations: [
@@ -161,7 +202,7 @@ describe('Prisma Adapter', () => {
 
   describe('buildOrderBy', () => {
     it('returns undefined for empty sort', () => {
-      expect(prismaAdapter.buildOrderBy([])).toBeUndefined();
+      expect(prismaQueryAdapter.buildOrderBy([])).toBeUndefined();
     });
 
     const sortCases: [
@@ -182,7 +223,7 @@ describe('Prisma Adapter', () => {
 
     for (const [label, sort, expected] of sortCases) {
       it(`builds ${label}`, () => {
-        expect(prismaAdapter.buildOrderBy(sort)).toEqual(expected);
+        expect(prismaQueryAdapter.buildOrderBy(sort)).toEqual(expected);
       });
     }
   });
@@ -195,14 +236,14 @@ describe('Prisma Adapter', () => {
 
     for (const [page, limit, expected] of skipTakeCases) {
       it(`calculates skip/take for page=${page}, limit=${limit}`, () => {
-        expect(prismaAdapter.buildSkipTake(page, limit)).toEqual(expected);
+        expect(prismaQueryAdapter.buildSkipTake(page, limit)).toEqual(expected);
       });
     }
   });
 
   describe('integration with adapter.map', () => {
     it('maps complete query', () => {
-      const result = prismaAdapter.map(
+      const result = prismaQueryAdapter.map(
         makeQuery({
           filters: [{ field: 'status', operator: 'eq', value: 'ACTIVE' }],
           sort: [{ field: 'createdAt', direction: 'desc' }],
@@ -219,7 +260,7 @@ describe('Prisma Adapter', () => {
   describe('nested relation filters', () => {
     it('builds nested relation filters from dotted paths', () => {
       expect(
-        prismaAdapter.buildWhere(
+        prismaQueryAdapter.buildWhere(
           makeQuery({
             relations: [
               {
