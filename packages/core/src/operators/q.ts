@@ -12,7 +12,7 @@ import { op } from './operators';
  *
  * Usage:
  * ```ts
- * import { defineQuery, q } from 'querio';
+ * import { defineQuery, q } from '@queryjs/core';
  *
  * const userQuery = defineQuery({
  *   fields: {
