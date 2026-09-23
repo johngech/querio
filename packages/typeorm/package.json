@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "TypeORM adapter for Querio",
   "license": "MIT",
-<<<<<<< HEAD
   "repository": {
     "type": "git",
     "url": "https://github.com/johngech/querio.git"
@@ -13,18 +12,13 @@
     "url": "https://github.com/johngech/querio/issues"
   },
   "homepage": "https://github.com/johngech/querio#readme",
-=======
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-<<<<<<< HEAD
   "engines": {
     "node": ">=18"
   },
-=======
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -39,11 +33,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-<<<<<<< HEAD
     "@querio/core": "^0.1.0",
-=======
-    "@querio/core": "workspace:*",
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
     "typeorm": "^0.3.20"
   },
   "devDependencies": {

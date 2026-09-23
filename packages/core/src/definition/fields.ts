@@ -1,6 +1,6 @@
-import { DEFAULT_OPERATORS } from "../operators/defaults";
-import { OpBuilder } from "../operators/operators";
-import type { FieldType, FilterFieldSpec, FilterOperator } from "./types";
+import { DEFAULT_OPERATORS } from '../operators/defaults';
+import { OpBuilder } from '../operators/operators';
+import type { FieldType, FilterFieldSpec, FilterOperator } from './types';
 
 // ── Base field builder ────────────────────────────────────────────────────────
 
@@ -20,10 +20,7 @@ abstract class FieldBuilder {
   protected _nullable = false;
   protected _caseSensitive = false;
 
-  constructor(
-    type: FieldType,
-    defaultOps: readonly FilterOperator[] = DEFAULT_OPERATORS[type],
-  ) {
+  constructor(type: FieldType, defaultOps: readonly FilterOperator[] = DEFAULT_OPERATORS[type]) {
     this._type = type;
     this._operators = defaultOps;
   }
@@ -95,7 +92,7 @@ class StringFieldBuilder extends FieldBuilder {
   private _emailMsg?: string;
 
   constructor() {
-    super("string");
+    super('string');
   }
 
   /** Minimum string length constraint. */
@@ -153,7 +150,7 @@ class NumberFieldBuilder extends FieldBuilder {
   private _integerMsg?: string;
 
   constructor() {
-    super("number");
+    super('number');
   }
 
   /** Minimum numeric value constraint. */
@@ -195,7 +192,7 @@ class NumberFieldBuilder extends FieldBuilder {
 
 class BooleanFieldBuilder extends FieldBuilder {
   constructor() {
-    super("boolean");
+    super('boolean');
   }
 }
 
@@ -203,7 +200,7 @@ class BooleanFieldBuilder extends FieldBuilder {
 
 class DateFieldBuilder extends FieldBuilder {
   constructor() {
-    super("date");
+    super('date');
   }
 }
 
@@ -213,7 +210,7 @@ class EnumFieldBuilder extends FieldBuilder {
   private _values: readonly string[];
 
   constructor(values: readonly string[]) {
-    super("enum");
+    super('enum');
     this._values = values;
   }
 

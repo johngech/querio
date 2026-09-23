@@ -1,4 +1,4 @@
-import type { FilterOperator } from "./types";
+import type { FilterOperator } from './types';
 
 /**
  * Fluent builder for composing filter operators.
@@ -20,67 +20,67 @@ export class OpBuilder {
   }
 
   equal(): this {
-    this._ops.push("eq");
+    this._ops.push('eq');
     return this;
   }
 
   notEqual(): this {
-    this._ops.push("neq");
+    this._ops.push('neq');
     return this;
   }
 
   greaterThan(): this {
-    this._ops.push("gt");
+    this._ops.push('gt');
     return this;
   }
 
   greaterThanOrEqual(): this {
-    this._ops.push("gte");
+    this._ops.push('gte');
     return this;
   }
 
   lessThan(): this {
-    this._ops.push("lt");
+    this._ops.push('lt');
     return this;
   }
 
   lessThanOrEqual(): this {
-    this._ops.push("lte");
+    this._ops.push('lte');
     return this;
   }
 
   contains(): this {
-    this._ops.push("contains");
+    this._ops.push('contains');
     return this;
   }
 
   startsWith(): this {
-    this._ops.push("startsWith");
+    this._ops.push('startsWith');
     return this;
   }
 
   endsWith(): this {
-    this._ops.push("endsWith");
+    this._ops.push('endsWith');
     return this;
   }
 
   in(): this {
-    this._ops.push("in");
+    this._ops.push('in');
     return this;
   }
 
   notIn(): this {
-    this._ops.push("notIn");
+    this._ops.push('notIn');
     return this;
   }
 
   isNull(): this {
-    this._ops.push("isNull");
+    this._ops.push('isNull');
     return this;
   }
 
   isNotNull(): this {
-    this._ops.push("isNotNull");
+    this._ops.push('isNotNull');
     return this;
   }
 
@@ -92,17 +92,17 @@ export class OpBuilder {
 
 /** Fluent operator namespace for composing allowed operators. */
 export const op = {
-  equal: () => new OpBuilder(["eq"]),
-  notEqual: () => new OpBuilder(["neq"]),
-  greaterThan: () => new OpBuilder(["gt"]),
-  greaterThanOrEqual: () => new OpBuilder(["gte"]),
-  lessThan: () => new OpBuilder(["lt"]),
-  lessThanOrEqual: () => new OpBuilder(["lte"]),
-  contains: () => new OpBuilder(["contains"]),
-  startsWith: () => new OpBuilder(["startsWith"]),
-  endsWith: () => new OpBuilder(["endsWith"]),
-  in: () => new OpBuilder(["in"]),
-  notIn: () => new OpBuilder(["notIn"]),
-  isNull: () => new OpBuilder(["isNull"]),
-  isNotNull: () => new OpBuilder(["isNotNull"]),
+  equal: () => new OpBuilder(['eq']),
+  notEqual: () => new OpBuilder(['neq']),
+  greaterThan: () => new OpBuilder(['gt']),
+  greaterThanOrEqual: () => new OpBuilder(['gte']),
+  lessThan: () => new OpBuilder(['lt']),
+  lessThanOrEqual: () => new OpBuilder(['lte']),
+  contains: () => new OpBuilder(['contains']),
+  startsWith: () => new OpBuilder(['startsWith']),
+  endsWith: () => new OpBuilder(['endsWith']),
+  in: () => new OpBuilder(['in']),
+  notIn: () => new OpBuilder(['notIn']),
+  isNull: () => new OpBuilder(['isNull']),
+  isNotNull: () => new OpBuilder(['isNotNull']),
 };

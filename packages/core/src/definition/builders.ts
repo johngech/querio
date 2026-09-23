@@ -1,12 +1,8 @@
-import { parseQuery } from "../parser";
-import type { QueryParams, ResourceQuery } from "../query";
-import { FieldBuilder } from "./fields";
-import type { ResourceQueryLimits } from "./limits";
-import type {
-  FilterFieldSpec,
-  RelationSpec,
-  ResourceQueryDefinition,
-} from "./types";
+import { parseQuery } from '../parser';
+import type { QueryParams, ResourceQuery } from '../query';
+import { FieldBuilder } from './fields';
+import type { ResourceQueryLimits } from './limits';
+import type { FilterFieldSpec, RelationSpec, ResourceQueryDefinition } from './types';
 
 /** A field entry accepted by `defineQuery` / `defineRelation`. */
 export type QueryField = FilterFieldSpec | FieldBuilder;
@@ -26,9 +22,7 @@ export interface QueryDefinition extends ResourceQueryDefinition {
   parse(params: QueryParams): ResourceQuery;
 }
 
-function resolveFields(
-  fields: Record<string, QueryField>,
-): Record<string, FilterFieldSpec> {
+function resolveFields(fields: Record<string, QueryField>): Record<string, FilterFieldSpec> {
   const resolved: Record<string, FilterFieldSpec> = {};
   for (const [name, value] of Object.entries(fields)) {
     // Detach from any caller-owned references (arrays are copied) and freeze
@@ -39,9 +33,7 @@ function resolveFields(
         : {
             ...value,
             operators: value.operators ? [...value.operators] : value.operators,
-            enumValues: value.enumValues
-              ? [...value.enumValues]
-              : value.enumValues,
+            enumValues: value.enumValues ? [...value.enumValues] : value.enumValues,
           };
     Object.freeze(spec);
     if (Array.isArray(spec.operators)) Object.freeze(spec.operators);

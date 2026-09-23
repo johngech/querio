@@ -1,17 +1,17 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from 'bun:test';
 import {
   defineQuery,
   defineRelation,
   type QueryParams,
   q,
   type SortExpression,
-} from "../../packages/core/src/index";
-import { parseQuery } from "../../packages/core/src/parser/parser";
+} from '../../packages/core/src/index';
+import { parseQuery } from '../../packages/core/src/parser/parser';
 
-describe("QueryParser", () => {
+describe('QueryParser', () => {
   const TEST_SPEC = defineQuery({
     fields: {
-      status: q.enum(["ACTIVE", "INACTIVE"]).sortable().searchable(),
+      status: q.enum(['ACTIVE', 'INACTIVE']).sortable().searchable(),
       firstName: q.string().sortable().searchable(),
       lastName: q.string().sortable().searchable(),
       email: q.string().sortable().searchable(),
@@ -23,22 +23,19 @@ describe("QueryParser", () => {
 
   const parse = (params: QueryParams) => TEST_SPEC.parse(params);
 
-  describe("parseQuery hook", () => {
-    it("parses params against a defineQuery definition", () => {
-      const result = parseQuery(
-        { filter: { status: "ACTIVE" }, sort: "-createdAt" },
-        TEST_SPEC,
-      );
+  describe('parseQuery hook', () => {
+    it('parses params against a defineQuery definition', () => {
+      const result = parseQuery({ filter: { status: 'ACTIVE' }, sort: '-createdAt' }, TEST_SPEC);
       expect(result.filters[0]).toMatchObject({
-        field: "status",
-        operator: "eq",
+        field: 'status',
+        operator: 'eq',
       });
-      expect(result.sort).toEqual([{ field: "createdAt", direction: "desc" }]);
+      expect(result.sort).toEqual([{ field: 'createdAt', direction: 'desc' }]);
     });
   });
 
-  describe("empty input", () => {
-    it("returns default pagination for empty query", () => {
+  describe('empty input', () => {
+    it('returns default pagination for empty query', () => {
       const result = parse({});
       expect(result.pagination).toEqual({ page: 1, limit: 10 });
       expect(result.filters).toEqual([]);
@@ -47,39 +44,35 @@ describe("QueryParser", () => {
     });
   });
 
-  describe("filter parsing", () => {
-    it("parses simple filter", () => {
-      const result = parse({ filter: { status: "ACTIVE" } });
+  describe('filter parsing', () => {
+    it('parses simple filter', () => {
+      const result = parse({ filter: { status: 'ACTIVE' } });
       expect(result.filters).toHaveLength(1);
       expect(result.filters[0]).toEqual({
-        field: "status",
-        operator: "eq",
-        value: "ACTIVE",
+        field: 'status',
+        operator: 'eq',
+        value: 'ACTIVE',
         caseSensitive: false,
       });
     });
 
-    it("parses operator filter", () => {
+    it('parses operator filter', () => {
       const result = parse({ filter: { age: { gte: 18, lt: 65 } } });
       expect(result.filters).toHaveLength(2);
     });
   });
 
-  describe("sort parsing", () => {
+  describe('sort parsing', () => {
     const sortCases: [string, QueryParams, SortExpression[]][] = [
       [
-        "comma-separated sort",
-        { sort: "-createdAt,firstName" },
+        'comma-separated sort',
+        { sort: '-createdAt,firstName' },
         [
-          { field: "createdAt", direction: "desc" },
-          { field: "firstName", direction: "asc" },
+          { field: 'createdAt', direction: 'desc' },
+          { field: 'firstName', direction: 'asc' },
         ],
       ],
-      [
-        "object sort",
-        { sort: { createdAt: "desc" } },
-        [{ field: "createdAt", direction: "desc" }],
-      ],
+      ['object sort', { sort: { createdAt: 'desc' } }, [{ field: 'createdAt', direction: 'desc' }]],
     ];
 
     for (const [label, input, expected] of sortCases) {
@@ -91,48 +84,28 @@ describe("QueryParser", () => {
     }
   });
 
-  describe("search parsing", () => {
-    it("parses simple search", () => {
-      const result = parse({ search: "abebe" });
+  describe('search parsing', () => {
+    it('parses simple search', () => {
+      const result = parse({ search: 'abebe' });
       expect(result.search).toBeDefined();
       expect(result.search!.terms).toHaveLength(1);
-      expect(result.search!.terms[0].value).toBe("abebe");
+      expect(result.search!.terms[0].value).toBe('abebe');
     });
 
-    it("parses complex search", () => {
+    it('parses complex search', () => {
       const result = parse({ search: '"abebe kebede" firstName:take*' });
       expect(result.search!.terms).toHaveLength(2);
-      expect(result.search!.terms[0].match).toBe("phrase");
-      expect(result.search!.terms[1].match).toBe("prefix");
+      expect(result.search!.terms[0].match).toBe('phrase');
+      expect(result.search!.terms[1].match).toBe('prefix');
     });
   });
 
-  describe("pagination parsing", () => {
-    const paginationCases: [
-      string,
-      QueryParams,
-      { page: number; limit: number },
-    ][] = [
-      [
-        "page and limit from strings",
-        { page: "3", limit: "25" },
-        { page: 3, limit: 25 },
-      ],
-      [
-        "page and limit from numbers",
-        { page: 2, limit: 20 },
-        { page: 2, limit: 20 },
-      ],
-      [
-        "non-numeric values",
-        { page: "abc", limit: "xyz" },
-        { page: 1, limit: 10 },
-      ],
-      [
-        "truncates decimal values",
-        { page: "2.7", limit: "10.9" },
-        { page: 2, limit: 10 },
-      ],
+  describe('pagination parsing', () => {
+    const paginationCases: [string, QueryParams, { page: number; limit: number }][] = [
+      ['page and limit from strings', { page: '3', limit: '25' }, { page: 3, limit: 25 }],
+      ['page and limit from numbers', { page: 2, limit: 20 }, { page: 2, limit: 20 }],
+      ['non-numeric values', { page: 'abc', limit: 'xyz' }, { page: 1, limit: 10 }],
+      ['truncates decimal values', { page: '2.7', limit: '10.9' }, { page: 2, limit: 10 }],
     ];
 
     for (const [label, input, expected] of paginationCases) {
@@ -142,32 +115,30 @@ describe("QueryParser", () => {
     }
 
     const clampCases: [string, QueryParams, string, number][] = [
-      ["page to minimum 1", { page: "0" }, "page", 1],
-      ["negative page to 1", { page: "-5" }, "page", 1],
-      ["limit to maximum 100", { limit: "200" }, "limit", 100],
-      ["limit to minimum 1", { limit: "0" }, "limit", 1],
-      ["Infinity page", { page: "Infinity" }, "page", 1],
-      ["huge page capped", { page: "1e300" }, "page", 1_000_000],
+      ['page to minimum 1', { page: '0' }, 'page', 1],
+      ['negative page to 1', { page: '-5' }, 'page', 1],
+      ['limit to maximum 100', { limit: '200' }, 'limit', 100],
+      ['limit to minimum 1', { limit: '0' }, 'limit', 1],
+      ['Infinity page', { page: 'Infinity' }, 'page', 1],
+      ['huge page capped', { page: '1e300' }, 'page', 1_000_000],
     ];
 
     for (const [label, input, key, value] of clampCases) {
       it(`clamps ${label}`, () => {
         const result = parse(input);
-        expect(result.pagination[key as keyof typeof result.pagination]).toBe(
-          value,
-        );
+        expect(result.pagination[key as keyof typeof result.pagination]).toBe(value);
       });
     }
   });
 
-  describe("combined queries", () => {
-    it("parses filter + sort + search + pagination", () => {
+  describe('combined queries', () => {
+    it('parses filter + sort + search + pagination', () => {
       const result = parse({
-        filter: { status: "ACTIVE" },
-        sort: "-createdAt",
-        search: "abebe",
-        page: "2",
-        limit: "25",
+        filter: { status: 'ACTIVE' },
+        sort: '-createdAt',
+        search: 'abebe',
+        page: '2',
+        limit: '25',
       });
       expect(result.filters).toHaveLength(1);
       expect(result.sort).toHaveLength(1);
@@ -176,38 +147,36 @@ describe("QueryParser", () => {
     });
   });
 
-  describe("configurable limits", () => {
-    it("honors custom maxPage / maxLimit / defaultLimit", () => {
+  describe('configurable limits', () => {
+    it('honors custom maxPage / maxLimit / defaultLimit', () => {
       const limited = defineQuery({
-        fields: { status: q.enum(["ACTIVE", "INACTIVE"]).sortable() },
+        fields: { status: q.enum(['ACTIVE', 'INACTIVE']).sortable() },
         limits: { maxPage: 100, maxLimit: 5, defaultLimit: 3 },
       });
 
-      expect(limited.parse({ page: "500" }).pagination).toEqual({
+      expect(limited.parse({ page: '500' }).pagination).toEqual({
         page: 100,
         limit: 3,
       });
-      expect(limited.parse({ limit: "20" }).pagination).toEqual({
+      expect(limited.parse({ limit: '20' }).pagination).toEqual({
         page: 1,
         limit: 5,
       });
     });
 
-    it("honors custom maxFilters", () => {
+    it('honors custom maxFilters', () => {
       const limited = defineQuery({
         fields: { a: q.string(), b: q.string(), c: q.string() },
         limits: { maxFilters: 2 },
       });
 
-      expect(() =>
-        limited.parse({ filter: { a: "1", b: "2", c: "3" } }),
-      ).toThrow("Too many filters");
-      expect(
-        limited.parse({ filter: { a: "1", b: "2" } }).filters,
-      ).toHaveLength(2);
+      expect(() => limited.parse({ filter: { a: '1', b: '2', c: '3' } })).toThrow(
+        'Too many filters',
+      );
+      expect(limited.parse({ filter: { a: '1', b: '2' } }).filters).toHaveLength(2);
     });
 
-    it("honors custom maxNestingDepth", () => {
+    it('honors custom maxNestingDepth', () => {
       const limited = defineQuery({
         fields: { name: q.string() },
         relations: {
@@ -227,21 +196,19 @@ describe("QueryParser", () => {
       });
 
       const result = limited.parse({
-        filter: { org: { parent: { grandparent: { name: "x" } } } },
+        filter: { org: { parent: { grandparent: { name: 'x' } } } },
       });
       expect(result.relations).toHaveLength(1);
-      expect(result.relations[0].relation).toBe("org.parent.grandparent");
+      expect(result.relations[0].relation).toBe('org.parent.grandparent');
     });
 
-    it("honors custom search limits", () => {
+    it('honors custom search limits', () => {
       const limited = defineQuery({
         fields: { name: q.string().searchable() },
         limits: { search: { maxTerms: 1 } },
       });
 
-      expect(() => limited.parse({ search: "a b" })).toThrow(
-        "maximum of 1 terms",
-      );
+      expect(() => limited.parse({ search: 'a b' })).toThrow('maximum of 1 terms');
     });
   });
 });

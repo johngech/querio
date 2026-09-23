@@ -10,10 +10,10 @@ import {
   type ResourceQuery,
   type SearchQuery,
   type SortExpression,
-} from "@querio/core";
-import type { MappableAdapter } from "@querio/core/compiler";
-import { QueryMapper } from "@querio/core/compiler";
-import { and, or, type SQL, sql } from "drizzle-orm";
+} from '@querio/core';
+import type { MappableAdapter } from '@querio/core/compiler';
+import { QueryMapper } from '@querio/core/compiler';
+import { and, or, type SQL, sql } from 'drizzle-orm';
 
 // ── Drizzle Adapter ──────────────────────────────────────────────────────
 
@@ -48,9 +48,7 @@ export const drizzleQueryAdapter = {
 
   buildOrderBy(sort: SortExpression[]): SQL[] | undefined {
     if (sort.length === 0) return undefined;
-    return sort.map((s) =>
-      sql.raw(`${quoteIdentifier(s.field)} ${s.direction.toUpperCase()}`),
-    );
+    return sort.map((s) => sql.raw(`${quoteIdentifier(s.field)} ${s.direction.toUpperCase()}`));
   },
 
   buildSkipTake(page: number, limit: number): { skip: number; take: number } {
@@ -65,9 +63,7 @@ function buildWhereFromQuery(query: ResourceQuery): SQL | undefined {
 
   // Scalar filters
   for (const f of query.filters) {
-    conditions.push(
-      conditionFor(f.field, f.operator, f.value, f.caseSensitive),
-    );
+    conditions.push(conditionFor(f.field, f.operator, f.value, f.caseSensitive));
   }
 
   // Relation filters
@@ -89,23 +85,19 @@ function buildWhereFromQuery(query: ResourceQuery): SQL | undefined {
 function relationConditions(rel: RelationFilterExpression): SQL[] {
   const conditions: SQL[] = [];
   for (const f of rel.filters) {
-    conditions.push(
-      conditionFor(f.field, f.operator, f.value, f.caseSensitive, rel.relation),
-    );
+    conditions.push(conditionFor(f.field, f.operator, f.value, f.caseSensitive, rel.relation));
   }
   return conditions;
 }
 
-function buildSearchCondition(
-  search: SearchQuery | undefined,
-): SQL | undefined {
+function buildSearchCondition(search: SearchQuery | undefined): SQL | undefined {
   if (!search) return undefined;
   const parts: SQL[] = [];
   for (const term of search.terms) {
     const targetFields = term.field ? [term.field] : search.fields;
     // Phrase and contains both compile to a contiguous-substring (LIKE) match;
     // prefix uses a starts-with match.
-    const op = term.match === "prefix" ? "startsWith" : "contains";
+    const op = term.match === 'prefix' ? 'startsWith' : 'contains';
     for (const f of targetFields) {
       parts.push(conditionFor(f, op, term.value, term.caseSensitive));
     }
@@ -121,8 +113,8 @@ function conditionFor(
   caseSensitive?: boolean,
   relation?: string,
 ): SQL {
-  const qualifiers = relation ? relation.split(".") : [];
-  const colName = [...qualifiers, field].map(quoteIdentifier).join(".");
+  const qualifiers = relation ? relation.split('.') : [];
+  const colName = [...qualifiers, field].map(quoteIdentifier).join('.');
   const col = sql.raw(colName);
   // Case-insensitive string matching uses LOWER() on both sides — portable
   // across SQLite, PostgreSQL, and MySQL without database-specific collations.
@@ -139,25 +131,21 @@ function conditionFor(
 
   const build = OPERATOR_SQL[operator];
   if (!build) {
-    throw new QuerioError(
-      `Unsupported operator '${operator}'`,
-      ErrorCode.UNSUPPORTED_OPERATOR,
-      {
-        operator,
-      },
-    );
+    throw new QuerioError(`Unsupported operator '${operator}'`, ErrorCode.UNSUPPORTED_OPERATOR, {
+      operator,
+    });
   }
   return build({ col, likeTarget, pattern, value });
 }
 
 function matchFor(operator: FilterOperator): LikeMatch {
   switch (operator) {
-    case "startsWith":
-      return "startsWith";
-    case "endsWith":
-      return "endsWith";
+    case 'startsWith':
+      return 'startsWith';
+    case 'endsWith':
+      return 'endsWith';
     default:
-      return "contains";
+      return 'contains';
   }
 }
 
@@ -170,21 +158,16 @@ interface OperatorContext {
 
 const OPERATOR_SQL: Record<FilterOperator, (ctx: OperatorContext) => SQL> = {
   eq: ({ col, value }) =>
-    nullClauseFor("eq", value) ? sql`${col} IS NULL` : sql`${col} = ${value}`,
+    nullClauseFor('eq', value) ? sql`${col} IS NULL` : sql`${col} = ${value}`,
   neq: ({ col, value }) =>
-    nullClauseFor("neq", value)
-      ? sql`${col} IS NOT NULL`
-      : sql`${col} != ${value}`,
+    nullClauseFor('neq', value) ? sql`${col} IS NOT NULL` : sql`${col} != ${value}`,
   gt: ({ col, value }) => sql`${col} > ${value}`,
   gte: ({ col, value }) => sql`${col} >= ${value}`,
   lt: ({ col, value }) => sql`${col} < ${value}`,
   lte: ({ col, value }) => sql`${col} <= ${value}`,
-  contains: ({ likeTarget, pattern }) =>
-    sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
-  startsWith: ({ likeTarget, pattern }) =>
-    sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
-  endsWith: ({ likeTarget, pattern }) =>
-    sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
+  contains: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
+  startsWith: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
+  endsWith: ({ likeTarget, pattern }) => sql`${likeTarget} LIKE ${pattern} ESCAPE '\\'`,
   in: ({ col, value }) => {
     const arr = value as unknown[];
     if (arr.length === 0) return sql`1=0`;
@@ -228,32 +211,30 @@ export function toDrizzleSQL(where: SQL | undefined): string | undefined {
   if (!where) return undefined;
   const chunks: string[] = [];
   flattenChunks(where.queryChunks, chunks);
-  return chunks.join("");
+  return chunks.join('');
 }
 
 function flattenChunks(chunks: readonly unknown[], out: string[]): void {
   for (const chunk of chunks) {
-    if (typeof chunk === "string") {
+    if (typeof chunk === 'string') {
       out.push(chunk);
     } else if (isSqlChunk(chunk)) {
       flattenChunks(chunk.queryChunks, out);
     } else if (
       chunk !== null &&
-      typeof chunk === "object" &&
-      "value" in chunk &&
+      typeof chunk === 'object' &&
+      'value' in chunk &&
       Array.isArray((chunk as { value: unknown }).value)
     ) {
-      out.push(String((chunk as { value: unknown[] }).value[0] ?? ""));
+      out.push(String((chunk as { value: unknown[] }).value[0] ?? ''));
     }
   }
 }
 
-function isSqlChunk(
-  value: unknown,
-): value is { queryChunks: readonly unknown[] } {
+function isSqlChunk(value: unknown): value is { queryChunks: readonly unknown[] } {
   return (
     value !== null &&
-    typeof value === "object" &&
+    typeof value === 'object' &&
     Array.isArray((value as { queryChunks?: unknown }).queryChunks)
   );
 }

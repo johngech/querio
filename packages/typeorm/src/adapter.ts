@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import type { FilterExpression, ResourceQuery, SearchQuery, SortExpression } from '@querio/core';
 import { buildLikePattern, type FilterOperator, nullClauseFor } from '@querio/core';
 import type { MappableAdapter } from '@querio/core/compiler';
@@ -6,19 +5,6 @@ import { QueryMapper } from '@querio/core/compiler';
 import {
   And,
   Equal,
-=======
-import type {
-  FilterExpression,
-  FilterOperator,
-  ResourceQuery,
-  SearchQuery,
-  SortExpression,
-} from "@querio/core";
-import type { MappableAdapter } from "@querio/core/compiler";
-import { QueryMapper } from "@querio/core/compiler";
-import {
-  And,
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   FindOperator,
   ILike,
   In,
@@ -29,11 +15,7 @@ import {
   MoreThan,
   MoreThanOrEqual,
   Not,
-<<<<<<< HEAD
 } from 'typeorm';
-=======
-} from "typeorm";
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
 
 // ── TypeORM types ─────────────────────────────────────────────────────────────
 
@@ -41,11 +23,7 @@ import {
 type TypeORMWhere = Record<string, unknown>;
 
 /** TypeORM-compatible OrderBy shape. */
-<<<<<<< HEAD
 type TypeORMOrderBy = Record<string, 'ASC' | 'DESC'>;
-=======
-type TypeORMOrderBy = Record<string, "ASC" | "DESC">;
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
 
 // ── TypeORM Adapter ───────────────────────────────────────────────────────────
 
@@ -56,17 +34,10 @@ type TypeORMOrderBy = Record<string, "ASC" | "DESC">;
  * (`In`, `Not`, `MoreThan`, `ILike`, `IsNull`, ...).
  *
  * Multiple operators on the same field are combined with TypeORM's `And()`
-<<<<<<< HEAD
  * (e.g. `age[greaterThanOrEqual]=18&age[lessThan]=65` → `{ age: And(MoreThanOrEqual(18), LessThan(65)) }`).
  * Search conditions are OR-joined using TypeORM's array-where form.
  */
 export const typeormQueryAdapter = {
-=======
- * (e.g. `age[gte]=18&age[lt]=65` → `{ age: And(MoreThanOrEqual(18), LessThan(65)) }`).
- * Search conditions are OR-joined using TypeORM's array-where form.
- */
-export const typeormAdapter = {
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   /** Map a parsed query to `{ where, orderBy, skip, take }` for TypeORM. */
   map(query: ResourceQuery): {
     where: TypeORMWhere | TypeORMWhere[] | undefined;
@@ -74,11 +45,7 @@ export const typeormAdapter = {
     skip: number;
     take: number;
   } {
-<<<<<<< HEAD
     return QueryMapper.map(query, typeormQueryAdapter);
-=======
-    return QueryMapper.map(query, typeormAdapter);
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   },
 
   buildWhere(query: ResourceQuery): TypeORMWhere | TypeORMWhere[] | undefined {
@@ -101,21 +68,11 @@ export const typeormAdapter = {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
 function directionToTypeORM(direction: 'asc' | 'desc'): 'ASC' | 'DESC' {
   return direction === 'asc' ? 'ASC' : 'DESC';
 }
 
 function buildWhereFromQuery(query: ResourceQuery): TypeORMWhere | TypeORMWhere[] | undefined {
-=======
-function directionToTypeORM(direction: "asc" | "desc"): "ASC" | "DESC" {
-  return direction === "asc" ? "ASC" : "DESC";
-}
-
-function buildWhereFromQuery(
-  query: ResourceQuery,
-): TypeORMWhere | TypeORMWhere[] | undefined {
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   const base: TypeORMWhere = {};
 
   if (query.filters.length > 0) {
@@ -130,7 +87,6 @@ function buildWhereFromQuery(
     return Object.keys(base).length === 0 ? undefined : base;
   }
 
-<<<<<<< HEAD
   // Search conditions are OR-joined over fields; each alternative must be
   // ANDed with the base filter set. When a search term targets a field that
   // already has a scalar filter, the two must be AND-combined per field
@@ -157,12 +113,6 @@ function andWhere(base: TypeORMWhere, alt: TypeORMWhere): TypeORMWhere {
   return merged;
 }
 
-=======
-  const combined = searchAlternatives.map((alt) => ({ ...base, ...alt }));
-  return combined.length === 1 ? combined[0] : combined;
-}
-
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
 /** Group filters per field, AND-combining multiple operators on the same field. */
 function buildScalarWhere(filters: FilterExpression[]): TypeORMWhere {
   const grouped = new Map<string, unknown[]>();
@@ -177,37 +127,18 @@ function buildScalarWhere(filters: FilterExpression[]): TypeORMWhere {
   const where: TypeORMWhere = {};
   for (const [field, ops] of grouped) {
     where[field] =
-<<<<<<< HEAD
       ops.length === 1 ? ops[0] : (And(...(ops as FindOperator<unknown>[])) as unknown);
-=======
-      ops.length === 1
-        ? ops[0]
-        : (And(...(ops as FindOperator<unknown>[])) as unknown);
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   }
   return where;
 }
 
 /** Assign `value` at a dotted path in `target`, creating intermediate objects. */
-<<<<<<< HEAD
 function setNestedWhere(target: TypeORMWhere, key: string, value: unknown): void {
   const segments = key.split('.');
   let node: TypeORMWhere = target;
   for (let i = 0; i < segments.length - 1; i++) {
     const existing = node[segments[i]];
     if (typeof existing !== 'object' || existing === null) {
-=======
-function setNestedWhere(
-  target: TypeORMWhere,
-  key: string,
-  value: unknown,
-): void {
-  const segments = key.split(".");
-  let node: TypeORMWhere = target;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const existing = node[segments[i]];
-    if (typeof existing !== "object" || existing === null) {
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
       node[segments[i]] = {};
     }
     node = node[segments[i]] as TypeORMWhere;
@@ -215,46 +146,23 @@ function setNestedWhere(
   node[segments[segments.length - 1]] = value;
 }
 
-<<<<<<< HEAD
 const OPERATORS: Record<FilterOperator, (value: unknown, caseSensitive?: boolean) => unknown> = {
   eq: (value) => (nullClauseFor('eq', value) ? IsNull() : value),
   neq: (value) => (nullClauseFor('neq', value) === 'notNull' ? Not(IsNull()) : Not(value)),
   in: (value) => In(value as unknown[]),
   notIn: (value) => Not(In(value as unknown[])),
-=======
-const OPERATORS: Record<
-  FilterOperator,
-  (value: unknown, caseSensitive?: boolean) => unknown
-> = {
-  eq: (value) => (value === null ? IsNull() : value),
-  neq: (value) => (value === null ? Not(IsNull()) : Not(value)),
-  in: (value) => In(value as unknown[]),
-  nin: (value) => Not(In(value as unknown[])),
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   gt: (value) => MoreThan(value),
   gte: (value) => MoreThanOrEqual(value),
   lt: (value) => LessThan(value),
   lte: (value) => LessThanOrEqual(value),
-<<<<<<< HEAD
   contains: (value, caseSensitive) => like(caseSensitive)(buildLikePattern(value, 'contains')),
   startsWith: (value, caseSensitive) => like(caseSensitive)(buildLikePattern(value, 'startsWith')),
   endsWith: (value, caseSensitive) => like(caseSensitive)(buildLikePattern(value, 'endsWith')),
-=======
-  contains: (value, caseSensitive) => like(caseSensitive)(`%${value}%`),
-  startsWith: (value, caseSensitive) => like(caseSensitive)(`${value}%`),
-  endsWith: (value, caseSensitive) => like(caseSensitive)(`%${value}`),
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   isNull: () => IsNull(),
   isNotNull: () => Not(IsNull()),
 };
 
-<<<<<<< HEAD
 function like(caseSensitive?: boolean): (pattern: string) => FindOperator<string> {
-=======
-function like(
-  caseSensitive?: boolean,
-): (pattern: string) => FindOperator<string> {
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
   return caseSensitive === true ? Like : ILike;
 }
 
@@ -264,23 +172,12 @@ function searchToWhere(search: SearchQuery): TypeORMWhere[] {
 
   for (const term of search.terms) {
     const targetFields = term.field ? [term.field] : search.fields;
-<<<<<<< HEAD
     // Phrase and contains both compile to a contiguous-substring (LIKE) match;
     // prefix uses a starts-with match. Escaping goes through the shared builder.
     const match = term.match === 'prefix' ? 'startsWith' : 'contains';
     const op = like(term.caseSensitive);
     for (const f of targetFields) {
       alternatives.push({ [f]: op(buildLikePattern(term.value, match)) });
-=======
-    const op = like(term.caseSensitive);
-    for (const f of targetFields) {
-      alternatives.push({
-        [f]:
-          term.match === "prefix"
-            ? op(`${term.value}%`)
-            : op(`%${term.value}%`),
-      });
->>>>>>> b959178b008b16aee84bfd5a98e681a7becde04d
     }
   }
 

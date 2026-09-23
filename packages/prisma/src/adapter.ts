@@ -4,10 +4,10 @@ import type {
   ResourceQuery,
   SearchQuery,
   SortExpression,
-} from "@querio/core";
-import { type FilterOperator, nullClauseFor } from "@querio/core";
-import type { MappableAdapter } from "@querio/core/compiler";
-import { QueryMapper } from "@querio/core/compiler";
+} from '@querio/core';
+import { type FilterOperator, nullClauseFor } from '@querio/core';
+import type { MappableAdapter } from '@querio/core/compiler';
+import { QueryMapper } from '@querio/core/compiler';
 
 // ── Prisma types (inline to avoid peer dep) ──────────────────────────────
 
@@ -21,7 +21,7 @@ interface PrismaWhereInput {
 
 /** Prisma-compatible OrderByInput shape. */
 interface PrismaOrderByInput {
-  [key: string]: "asc" | "desc";
+  [key: string]: 'asc' | 'desc';
 }
 
 // ── Internal Helpers ───────────────────────────────────────────────────────
@@ -30,10 +30,8 @@ const OPERATOR_MAP: Record<
   FilterOperator,
   (value: unknown, caseSensitive?: boolean) => Record<string, unknown>
 > = {
-  eq: (value) =>
-    nullClauseFor("eq", value) ? { equals: null } : { equals: value },
-  neq: (value) =>
-    nullClauseFor("neq", value) ? { not: null } : { not: value },
+  eq: (value) => (nullClauseFor('eq', value) ? { equals: null } : { equals: value }),
+  neq: (value) => (nullClauseFor('neq', value) ? { not: null } : { not: value }),
   in: (value) => ({ in: value }),
   notIn: (value) => ({ notIn: value }),
   gt: (value) => ({ gt: value }),
@@ -57,7 +55,7 @@ const OPERATOR_MAP: Record<
 };
 
 function modeClause(caseSensitive?: boolean): Record<string, string> {
-  return caseSensitive ? {} : { mode: "insensitive" };
+  return caseSensitive ? {} : { mode: 'insensitive' };
 }
 
 /**
@@ -70,9 +68,7 @@ function modeClause(caseSensitive?: boolean): Record<string, string> {
  * combine arbitrary operators (e.g. `greaterThanOrEqual` + `equals`) in one
  * field filter, whereas an `AND` list merges them deterministically.
  */
-function buildScalarWhere(
-  filters: FilterExpression[],
-): Record<string, unknown> {
+function buildScalarWhere(filters: FilterExpression[]): Record<string, unknown> {
   const perField = new Map<string, Record<string, unknown>[]>();
 
   for (const f of filters) {
@@ -82,9 +78,7 @@ function buildScalarWhere(
     perField.set(f.field, list);
   }
 
-  const hasMultiOpField = [...perField.values()].some(
-    (list) => list.length > 1,
-  );
+  const hasMultiOpField = [...perField.values()].some((list) => list.length > 1);
 
   if (!hasMultiOpField) {
     const where: Record<string, Record<string, unknown>> = {};
@@ -111,7 +105,7 @@ function searchToWhere(search: SearchQuery): Record<string, unknown> {
 
     // Phrase and contains both compile to a contiguous-substring match; prefix
     // uses a starts-with match.
-    const op = term.match === "prefix" ? "startsWith" : "contains";
+    const op = term.match === 'prefix' ? 'startsWith' : 'contains';
     for (const f of targetFields) {
       fieldClauses.push({
         [f]: { [op]: term.value, ...modeClause(term.caseSensitive) },
@@ -124,10 +118,8 @@ function searchToWhere(search: SearchQuery): Record<string, unknown> {
 }
 
 /** Build a nested relation where clause from a (possibly dotted) relation path. */
-function relationToWhere(
-  rel: RelationFilterExpression,
-): Record<string, unknown> {
-  const segments = rel.relation.split(".");
+function relationToWhere(rel: RelationFilterExpression): Record<string, unknown> {
+  const segments = rel.relation.split('.');
   let node: Record<string, unknown> = buildScalarWhere(rel.filters);
   for (let i = segments.length - 1; i >= 0; i--) {
     node = { [segments[i]]: node };

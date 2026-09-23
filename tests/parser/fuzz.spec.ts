@@ -1,21 +1,16 @@
-import { describe, expect, it } from "bun:test";
-import type { ResourceQueryDefinition } from "../../packages/core/src/definition/types";
+import { describe, expect, it } from 'bun:test';
+import type { ResourceQueryDefinition } from '../../packages/core/src/definition/types';
 import type {
   FilterExpression,
   RelationFilterExpression,
   SearchQuery,
   SortExpression,
-} from "../../packages/core/src/index";
-import {
-  defineQuery,
-  defineRelation,
-  QuerioError,
-  q,
-} from "../../packages/core/src/index";
-import { QueryOrderEngine } from "../../packages/core/src/parser/order-engine";
-import { parseQuery } from "../../packages/core/src/parser/parser";
-import { QuerySearchEngine } from "../../packages/core/src/parser/search-engine";
-import { QueryWhereEngine } from "../../packages/core/src/parser/where-engine";
+} from '../../packages/core/src/index';
+import { defineQuery, defineRelation, QuerioError, q } from '../../packages/core/src/index';
+import { QueryOrderEngine } from '../../packages/core/src/parser/order-engine';
+import { parseQuery } from '../../packages/core/src/parser/parser';
+import { QuerySearchEngine } from '../../packages/core/src/parser/search-engine';
+import { QueryWhereEngine } from '../../packages/core/src/parser/where-engine';
 
 /**
  * Property/fuzz tests for the parsing engines.
@@ -39,12 +34,11 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const ALPHABET =
-  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- .:*";
+const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_- .:*';
 
 function randomString(rand: () => number, maxLength = 20): string {
   const len = Math.floor(rand() * maxLength);
-  let out = "";
+  let out = '';
   for (let i = 0; i < len; i++) {
     out += ALPHABET[Math.floor(rand() * ALPHABET.length)];
   }
@@ -57,12 +51,12 @@ function randomPrimitive(rand: () => number): unknown {
   if (r < 0.4) return String(Math.floor(rand() * 200));
   if (r < 0.6) return String(rand() * 100);
   if (r < 0.8) return randomString(rand);
-  return "true";
+  return 'true';
 }
 
 const FUZZ_SPEC = defineQuery({
   fields: {
-    status: q.enum(["ACTIVE", "INACTIVE", "PENDING"]).sortable().searchable(),
+    status: q.enum(['ACTIVE', 'INACTIVE', 'PENDING']).sortable().searchable(),
     firstName: q.string().sortable().searchable(),
     lastName: q.string().sortable().searchable(),
     email: q.string().sortable().searchable(),
@@ -80,55 +74,38 @@ const FUZZ_SPEC = defineQuery({
 const MEMBER_FIELDS = FUZZ_SPEC.relations!.member.fields;
 
 const OPERATORS_BY_TYPE: Record<string, string[]> = {
-  string: [
-    "eq",
-    "neq",
-    "contains",
-    "startsWith",
-    "endsWith",
-    "in",
-    "notIn",
-    "isNull",
-    "isNotNull",
-  ],
-  number: ["eq", "neq", "gt", "gte", "lt", "lte", "isNull", "isNotNull"],
-  boolean: ["eq", "isNull", "isNotNull"],
-  date: ["eq", "neq", "gt", "gte", "lt", "lte", "isNull", "isNotNull"],
-  enum: ["eq", "neq", "in", "notIn", "isNull", "isNotNull"],
+  string: ['eq', 'neq', 'contains', 'startsWith', 'endsWith', 'in', 'notIn', 'isNull', 'isNotNull'],
+  number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isNull', 'isNotNull'],
+  boolean: ['eq', 'isNull', 'isNotNull'],
+  date: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isNull', 'isNotNull'],
+  enum: ['eq', 'neq', 'in', 'notIn', 'isNull', 'isNotNull'],
 };
 
-const OP_TO_TUPLE: Record<
-  FilterExpression["operator"],
-  "array" | "no_val" | "scalar"
-> = {
-  eq: "scalar",
-  neq: "scalar",
-  gt: "scalar",
-  gte: "scalar",
-  lt: "scalar",
-  lte: "scalar",
-  contains: "scalar",
-  startsWith: "scalar",
-  endsWith: "scalar",
-  in: "array",
-  notIn: "array",
-  isNull: "no_val",
-  isNotNull: "no_val",
+const OP_TO_TUPLE: Record<FilterExpression['operator'], 'array' | 'no_val' | 'scalar'> = {
+  eq: 'scalar',
+  neq: 'scalar',
+  gt: 'scalar',
+  gte: 'scalar',
+  lt: 'scalar',
+  lte: 'scalar',
+  contains: 'scalar',
+  startsWith: 'scalar',
+  endsWith: 'scalar',
+  in: 'array',
+  notIn: 'array',
+  isNull: 'no_val',
+  isNotNull: 'no_val',
 };
 
 /** Build a random, potentially-malformed filter payload for the fuzz spec. */
 function randomWhere(
   rand: () => number,
   depth = 0,
-  fields: Record<string, unknown> = FUZZ_SPEC.fields as unknown as Record<
-    string,
-    unknown
-  >,
+  fields: Record<string, unknown> = FUZZ_SPEC.fields as unknown as Record<string, unknown>,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const known = Object.keys(fields);
-  const keys =
-    rand() < 0.8 ? known : ["nonexistent", "toString", "constructor"];
+  const keys = rand() < 0.8 ? known : ['nonexistent', 'toString', 'constructor'];
   const count = Math.floor(rand() * 4);
   for (let i = 0; i < count; i++) {
     const field = keys[Math.floor(rand() * keys.length)];
@@ -155,12 +132,10 @@ function randomWhere(
     const opCount = Math.floor(rand() * 2) + 1;
     for (let j = 0; j < opCount; j++) {
       const op = ops[Math.floor(rand() * ops.length)];
-      if (op === "in" || op === "notIn") {
-        opset[op] = Array.from({ length: Math.floor(rand() * 3) }, () =>
-          randomPrimitive(rand),
-        );
-      } else if (op === "isNull" || op === "isNotNull") {
-        opset[op] = "true";
+      if (op === 'in' || op === 'notIn') {
+        opset[op] = Array.from({ length: Math.floor(rand() * 3) }, () => randomPrimitive(rand));
+      } else if (op === 'isNull' || op === 'isNotNull') {
+        opset[op] = 'true';
       } else {
         opset[op] = randomPrimitive(rand);
       }
@@ -170,8 +145,8 @@ function randomWhere(
   return out;
 }
 
-describe("fuzz — where engine invariants", () => {
-  it("never leaks unknown fields, disallowed operators, or prototype keys", () => {
+describe('fuzz — where engine invariants', () => {
+  it('never leaks unknown fields, disallowed operators, or prototype keys', () => {
     const rand = mulberry32(0xc0ffee);
     for (let i = 0; i < 1500; i++) {
       const input = randomWhere(rand);
@@ -179,10 +154,7 @@ describe("fuzz — where engine invariants", () => {
         | { filters: FilterExpression[]; relations: RelationFilterExpression[] }
         | undefined;
       try {
-        result = QueryWhereEngine.buildFilters(
-          input,
-          FUZZ_SPEC as ResourceQueryDefinition,
-        );
+        result = QueryWhereEngine.buildFilters(input, FUZZ_SPEC as ResourceQueryDefinition);
       } catch (error) {
         expect(error).toBeInstanceOf(QuerioError);
         continue;
@@ -196,17 +168,15 @@ describe("fuzz — where engine invariants", () => {
           `field ${filter.field} must exist for input ${JSON.stringify(input)}`,
         ).toBeDefined();
         expect(spec!.operators).toContain(filter.operator);
-        if (OP_TO_TUPLE[filter.operator] === "scalar") {
-          expect(filter).toHaveProperty("value");
-        } else if (OP_TO_TUPLE[filter.operator] === "no_val") {
-          expect(filter).not.toHaveProperty("value");
+        if (OP_TO_TUPLE[filter.operator] === 'scalar') {
+          expect(filter).toHaveProperty('value');
+        } else if (OP_TO_TUPLE[filter.operator] === 'no_val') {
+          expect(filter).not.toHaveProperty('value');
         }
       }
       for (const relation of relations) {
-        expect(relation.relation).toBe("member");
-        const fieldNames = Object.keys(
-          FUZZ_SPEC.relations?.member.fields ?? {},
-        );
+        expect(relation.relation).toBe('member');
+        const fieldNames = Object.keys(FUZZ_SPEC.relations?.member.fields ?? {});
         for (const filter of relation.filters) {
           expect(fieldNames).toContain(filter.field);
         }
@@ -215,7 +185,7 @@ describe("fuzz — where engine invariants", () => {
     }
   });
 
-  it("types parsed values per field spec", () => {
+  it('types parsed values per field spec', () => {
     const rand = mulberry32(0xbeef);
     for (let i = 0; i < 800; i++) {
       const input = randomWhere(rand);
@@ -223,10 +193,7 @@ describe("fuzz — where engine invariants", () => {
         | { filters: FilterExpression[]; relations: RelationFilterExpression[] }
         | undefined;
       try {
-        result = QueryWhereEngine.buildFilters(
-          input,
-          FUZZ_SPEC as ResourceQueryDefinition,
-        );
+        result = QueryWhereEngine.buildFilters(input, FUZZ_SPEC as ResourceQueryDefinition);
       } catch {
         continue;
       }
@@ -234,65 +201,54 @@ describe("fuzz — where engine invariants", () => {
         const spec = FUZZ_SPEC.fields[filter.field]!;
         if (!filter.value) continue;
         if (Array.isArray(filter.value)) continue;
-        if (spec.type === "number") {
-          expect(typeof filter.value).toBe("number");
-        } else if (spec.type === "boolean") {
-          expect(typeof filter.value).toBe("boolean");
-        } else if (spec.type === "enum") {
+        if (spec.type === 'number') {
+          expect(typeof filter.value).toBe('number');
+        } else if (spec.type === 'boolean') {
+          expect(typeof filter.value).toBe('boolean');
+        } else if (spec.type === 'enum') {
           expect(spec.enumValues).toContain(String(filter.value));
         } else {
-          expect(typeof filter.value).toBe("string");
+          expect(typeof filter.value).toBe('string');
         }
       }
     }
   });
 });
 
-describe("fuzz — order engine invariants", () => {
-  it("success only yields sortable fields with valid directions", () => {
+describe('fuzz — order engine invariants', () => {
+  it('success only yields sortable fields with valid directions', () => {
     const rand = mulberry32(0xf00d);
-    const SORTABLE = [
-      "status",
-      "firstName",
-      "lastName",
-      "email",
-      "age",
-      "createdAt",
-    ];
+    const SORTABLE = ['status', 'firstName', 'lastName', 'email', 'age', 'createdAt'];
     for (let i = 0; i < 300; i++) {
       const clauses = Array.from(
         { length: Math.floor(rand() * 6) },
-        () =>
-          `${rand() < 0.5 ? "-" : ""}${SORTABLE[Math.floor(rand() * SORTABLE.length)]}`,
+        () => `${rand() < 0.5 ? '-' : ''}${SORTABLE[Math.floor(rand() * SORTABLE.length)]}`,
       );
-      const raw = clauses.join(",");
+      const raw = clauses.join(',');
       let result: SortExpression[] | undefined;
       try {
-        result = QueryOrderEngine.buildSort(
-          raw,
-          FUZZ_SPEC as ResourceQueryDefinition,
-        );
+        result = QueryOrderEngine.buildSort(raw, FUZZ_SPEC as ResourceQueryDefinition);
       } catch (error) {
         expect(error).toBeInstanceOf(QuerioError);
         continue;
       }
       for (const sort of result) {
         expect(SORTABLE).toContain(sort.field);
-        expect(["asc", "desc"]).toContain(sort.direction);
+        expect(['asc', 'desc']).toContain(sort.direction);
       }
     }
   });
 });
 
-describe("fuzz — search engine invariants", () => {
-  it("success yields terms with non-empty values and known match types", () => {
+describe('fuzz — search engine invariants', () => {
+  it('success yields terms with non-empty values and known match types', () => {
     const rand = mulberry32(0x5eed);
     for (let i = 0; i < 400; i++) {
       const raw = randomString(rand, 40);
       let result: SearchQuery | undefined;
       try {
         result = QuerySearchEngine.buildSearch(
-          raw === "" ? undefined : raw,
+          raw === '' ? undefined : raw,
           FUZZ_SPEC as ResourceQueryDefinition,
         );
       } catch (error) {
@@ -302,7 +258,7 @@ describe("fuzz — search engine invariants", () => {
       if (!result) continue;
       for (const term of result.terms) {
         expect(term.value.length).toBeGreaterThan(0);
-        expect(["contains", "prefix", "phrase"]).toContain(term.match);
+        expect(['contains', 'prefix', 'phrase']).toContain(term.match);
         if (term.field) {
           expect(FUZZ_SPEC.fields[term.field]?.searchable).toBe(true);
         }
@@ -311,8 +267,8 @@ describe("fuzz — search engine invariants", () => {
   });
 });
 
-describe("fuzz — pagination invariants", () => {
-  it("page and limit always land in [1, cap]", () => {
+describe('fuzz — pagination invariants', () => {
+  it('page and limit always land in [1, cap]', () => {
     const rand = mulberry32(0xdead);
     for (let i = 0; i < 500; i++) {
       const page = Math.floor(rand() * 1_000_000) - 500_000;

@@ -1,20 +1,14 @@
-import {
-  DEFAULT_MAX_FILTERS,
-  DEFAULT_MAX_NESTING_DEPTH,
-} from "../definition/limits";
+import { DEFAULT_MAX_FILTERS, DEFAULT_MAX_NESTING_DEPTH } from '../definition/limits';
 import type {
   FilterFieldSpec,
   FilterOperator,
   RelationSpec,
   ResourceQueryDefinition,
-} from "../definition/types";
-import { isEmptySubstringValue } from "../operators/semantics";
-import type { FieldType } from "../operators/types";
-import type {
-  FilterExpression,
-  RelationFilterExpression,
-} from "../query/index";
-import { ErrorCode, QuerioError } from "../query/querio-error";
+} from '../definition/types';
+import { isEmptySubstringValue } from '../operators/semantics';
+import type { FieldType } from '../operators/types';
+import type { FilterExpression, RelationFilterExpression } from '../query/index';
+import { ErrorCode, QuerioError } from '../query/querio-error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,10 +23,7 @@ const NUMBER_REGEX = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
  * Cached `Set` lookups so per-parse filter validation stays fast without
  * mutating the public field specs (which stay plain arrays for consumers).
  */
-const operatorSets = new WeakMap<
-  FilterFieldSpec,
-  ReadonlySet<FilterOperator>
->();
+const operatorSets = new WeakMap<FilterFieldSpec, ReadonlySet<FilterOperator>>();
 const enumValueSets = new WeakMap<FilterFieldSpec, ReadonlySet<string>>();
 
 function getOperatorSet(spec: FilterFieldSpec): ReadonlySet<FilterOperator> {
@@ -44,9 +35,7 @@ function getOperatorSet(spec: FilterFieldSpec): ReadonlySet<FilterOperator> {
   return set;
 }
 
-function getEnumValueSet(
-  spec: FilterFieldSpec,
-): ReadonlySet<string> | undefined {
+function getEnumValueSet(spec: FilterFieldSpec): ReadonlySet<string> | undefined {
   if (!spec.enumValues) return undefined;
   let set = enumValueSets.get(spec);
   if (!set) {
@@ -56,18 +45,14 @@ function getEnumValueSet(
   return set;
 }
 
-type TypeParser = (
-  value: string,
-  spec: FilterFieldSpec,
-  field: string,
-) => unknown;
+type TypeParser = (value: string, spec: FilterFieldSpec, field: string) => unknown;
 
 const TYPE_PARSERS: Record<FieldType, TypeParser> = {
   string: (str) => str,
   boolean: (str) => {
     const lower = str.toLowerCase();
-    if (lower === "true") return true;
-    if (lower === "false") return false;
+    if (lower === 'true') return true;
+    if (lower === 'false') return false;
     throw new QuerioError(
       `Invalid boolean value '${str}' (expected true or false)`,
       ErrorCode.INVALID_BOOLEAN,
@@ -114,7 +99,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
     const allowed = getEnumValueSet(spec);
     if (allowed && !allowed.has(str)) {
       throw new QuerioError(
-        `Invalid enum value '${str}' for field '${field}' (allowed: ${spec.enumValues?.join(", ")})`,
+        `Invalid enum value '${str}' for field '${field}' (allowed: ${spec.enumValues?.join(', ')})`,
         ErrorCode.INVALID_ENUM_VALUE,
         { field, details: { allowed: spec.enumValues } },
       );
@@ -140,7 +125,7 @@ function validateConstraints(
 
   const str = String(value);
 
-  if (fieldSpec.type === "string" && !partial) {
+  if (fieldSpec.type === 'string' && !partial) {
     if (fieldSpec.minLength !== undefined && str.length < fieldSpec.minLength) {
       throw new QuerioError(
         fieldSpec.minLengthMsg ||
@@ -165,23 +150,21 @@ function validateConstraints(
     }
     if (fieldSpec.isEmail && !EMAIL_REGEX.test(str)) {
       throw new QuerioError(
-        fieldSpec.emailMsg ||
-          `Value for field '${field}' must be a valid email address`,
+        fieldSpec.emailMsg || `Value for field '${field}' must be a valid email address`,
         ErrorCode.VALUE_NOT_EMAIL,
         { field },
       );
     }
     if (fieldSpec.pattern && !fieldSpec.pattern.test(str)) {
       throw new QuerioError(
-        fieldSpec.patternMsg ||
-          `Value for field '${field}' does not match required pattern`,
+        fieldSpec.patternMsg || `Value for field '${field}' does not match required pattern`,
         ErrorCode.VALUE_PATTERN_MISMATCH,
         { field, details: { pattern: fieldSpec.pattern.source } },
       );
     }
   }
 
-  if (fieldSpec.type === "number" && typeof value === "number") {
+  if (fieldSpec.type === 'number' && typeof value === 'number') {
     if (fieldSpec.min !== undefined && value < fieldSpec.min) {
       throw new QuerioError(
         fieldSpec.minMsg ||
@@ -200,8 +183,7 @@ function validateConstraints(
     }
     if (fieldSpec.isInteger && !Number.isInteger(value)) {
       throw new QuerioError(
-        fieldSpec.integerMsg ||
-          `Value for field '${field}' must be an integer (got ${value})`,
+        fieldSpec.integerMsg || `Value for field '${field}' must be an integer (got ${value})`,
         ErrorCode.VALUE_NOT_INTEGER,
         { field, details: { actual: value } },
       );
@@ -230,23 +212,21 @@ export class QueryWhereEngine {
     maxFilters: number = DEFAULT_MAX_FILTERS,
     maxNestingDepth: number = DEFAULT_MAX_NESTING_DEPTH,
   ): { filters: FilterExpression[]; relations: RelationFilterExpression[] } {
-    if (!raw || typeof raw !== "object" || Object.keys(raw).length === 0) {
+    if (!raw || typeof raw !== 'object' || Object.keys(raw).length === 0) {
       return { filters: [], relations: [] };
     }
     const { filters, relations } = QueryWhereEngine.walk(
       raw,
       spec,
-      "$root",
+      '$root',
       0,
       maxNestingDepth,
-      "",
+      '',
     );
     // `maxFilters` limits the total number of filter conditions, including
     // those nested inside relation filters — otherwise a crafted query with
     // many relation branches could build unbounded condition lists.
-    const totalCount =
-      filters.length +
-      relations.reduce((sum, rel) => sum + rel.filters.length, 0);
+    const totalCount = filters.length + relations.reduce((sum, rel) => sum + rel.filters.length, 0);
     if (totalCount > maxFilters) {
       throw new QuerioError(
         `Too many filters (${totalCount} exceeds maximum of ${maxFilters})`,
@@ -280,9 +260,7 @@ export class QueryWhereEngine {
       // Relation? (own-property check only — never resolve via the prototype chain)
       const relationSpecs = spec.relations;
       const relationSpec =
-        relationSpecs && Object.hasOwn(relationSpecs, key)
-          ? relationSpecs[key]
-          : undefined;
+        relationSpecs && Object.hasOwn(relationSpecs, key) ? relationSpecs[key] : undefined;
       if (relationSpec) {
         const nested = QueryWhereEngine.handleRelation(
           key,
@@ -304,24 +282,18 @@ export class QueryWhereEngine {
       }
 
       // Scalar field? (own-property check only)
-      const fieldSpec = Object.hasOwn(spec.fields, key)
-        ? spec.fields[key]
-        : undefined;
+      const fieldSpec = Object.hasOwn(spec.fields, key) ? spec.fields[key] : undefined;
       if (!fieldSpec) {
-        throw new QuerioError(
-          `Unknown filter field: '${key}'`,
-          ErrorCode.UNKNOWN_FIELD,
-          {
-            field: key,
-          },
-        );
+        throw new QuerioError(`Unknown filter field: '${key}'`, ErrorCode.UNKNOWN_FIELD, {
+          field: key,
+        });
       }
 
       // Leaf: primitive value → implicit eq
-      if (value === null || typeof value !== "object") {
+      if (value === null || typeof value !== 'object') {
         filters.push({
           field: key,
-          operator: "eq",
+          operator: 'eq',
           value: QueryWhereEngine.parseValue(value, fieldSpec, key),
           caseSensitive: fieldSpec.caseSensitive,
         });
@@ -330,11 +302,7 @@ export class QueryWhereEngine {
 
       // Leaf: operator map
       filters.push(
-        ...QueryWhereEngine.buildOperatorFilters(
-          key,
-          value as Record<string, unknown>,
-          fieldSpec,
-        ),
+        ...QueryWhereEngine.buildOperatorFilters(key, value as Record<string, unknown>, fieldSpec),
       );
     }
 
@@ -354,7 +322,7 @@ export class QueryWhereEngine {
     relations: RelationFilterExpression[];
     relationPath: string;
   } {
-    if (!value || typeof value !== "object") {
+    if (!value || typeof value !== 'object') {
       throw new QuerioError(
         `Relation '${key}' must be an object (e.g. ?filter[${key}][fieldName]=value)`,
         ErrorCode.RELATION_MUST_BE_OBJECT,
@@ -362,9 +330,7 @@ export class QueryWhereEngine {
       );
     }
 
-    const relationPath = parentRelationPath
-      ? `${parentRelationPath}.${key}`
-      : key;
+    const relationPath = parentRelationPath ? `${parentRelationPath}.${key}` : key;
     const nested = QueryWhereEngine.walk(
       value as Record<string, unknown>,
       { fields: relationSpec.fields, relations: relationSpec.relations },
@@ -386,14 +352,14 @@ export class QueryWhereEngine {
     for (const [operator, val] of Object.entries(raw)) {
       if (!QueryWhereEngine.isAllowedOperator(operator, fieldSpec)) {
         throw new QuerioError(
-          `Operator '${operator}' is not supported for field '${field}' (allowed: ${[...fieldSpec.operators].join(", ")})`,
+          `Operator '${operator}' is not supported for field '${field}' (allowed: ${[...fieldSpec.operators].join(', ')})`,
           ErrorCode.UNSUPPORTED_OPERATOR,
           { field, operator, details: { allowed: [...fieldSpec.operators] } },
         );
       }
 
       // Array operators — accept an array or a comma-separated list (?filter[x][in]=a,b,c)
-      if (operator === "in" || operator === "notIn") {
+      if (operator === 'in' || operator === 'notIn') {
         const values = QueryWhereEngine.toArrayValue(val);
         if (!values || values.length === 0) {
           throw new QuerioError(
@@ -407,9 +373,7 @@ export class QueryWhereEngine {
         filters.push({
           field,
           operator,
-          value: values.map((v) =>
-            QueryWhereEngine.parseValue(v, fieldSpec, field),
-          ),
+          value: values.map((v) => QueryWhereEngine.parseValue(v, fieldSpec, field)),
           caseSensitive: fieldSpec.caseSensitive,
         });
         continue;
@@ -418,14 +382,12 @@ export class QueryWhereEngine {
       // Null-check operators — the flag must be explicitly true. Rejects
       // isNull=false, which would otherwise silently mean 'not null'; clients
       // should use the explicit 'isNotNull' operator for that.
-      if (operator === "isNull" || operator === "isNotNull") {
-        const flag = typeof val === "boolean" ? val : String(val) === "true";
+      if (operator === 'isNull' || operator === 'isNotNull') {
+        const flag = typeof val === 'boolean' ? val : String(val) === 'true';
         if (flag !== true) {
           throw new QuerioError(
             `Filter '${field}[${operator}]' expects the value 'true'` +
-              (operator === "isNull"
-                ? " (use 'isNotNull' for not-null checks)"
-                : ""),
+              (operator === 'isNull' ? " (use 'isNotNull' for not-null checks)" : ''),
             ErrorCode.INVALID_FILTER_VALUE,
             { field, operator },
           );
@@ -442,15 +404,8 @@ export class QueryWhereEngine {
       // constraints (minLength, email, pattern) must not apply to them. But an
       // empty substring value would match every row (LIKE '%%'), so reject it.
       const partial =
-        operator === "contains" ||
-        operator === "startsWith" ||
-        operator === "endsWith";
-      const parsed = QueryWhereEngine.parseValue(
-        val,
-        fieldSpec,
-        field,
-        partial,
-      );
+        operator === 'contains' || operator === 'startsWith' || operator === 'endsWith';
+      const parsed = QueryWhereEngine.parseValue(val, fieldSpec, field, partial);
       if (isEmptySubstringValue(operator as FilterOperator, parsed)) {
         throw new QuerioError(
           `Filter '${field}[${operator}]' must not be empty`,
@@ -476,19 +431,16 @@ export class QueryWhereEngine {
    */
   private static toArrayValue(val: unknown): unknown[] | undefined {
     if (Array.isArray(val)) return val;
-    if (typeof val === "string") {
+    if (typeof val === 'string') {
       return val
-        .split(",")
+        .split(',')
         .map((segment) => segment.trim())
         .filter((segment) => segment.length > 0);
     }
     return undefined;
   }
 
-  private static isAllowedOperator(
-    op: string,
-    fieldSpec: FilterFieldSpec,
-  ): boolean {
+  private static isAllowedOperator(op: string, fieldSpec: FilterFieldSpec): boolean {
     return getOperatorSet(fieldSpec).has(op as FilterOperator);
   }
 
