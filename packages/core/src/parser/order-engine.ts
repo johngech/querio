@@ -1,6 +1,6 @@
-import type { ResourceQueryDefinition } from '../definition/types';
-import type { SortDirection, SortExpression } from '../query/index';
-import { ErrorCode, QuerioError } from '../query/querio-error';
+import type { ResourceQueryDefinition } from "../definition/types";
+import type { SortDirection, SortExpression } from "../query/index";
+import { ErrorCode, QuerioError } from "../query/querio-error";
 
 /**
  * Validates raw `sort` input from the query string against a
@@ -21,11 +21,11 @@ export class QueryOrderEngine {
     if (raw === undefined || raw === null) return [];
 
     // Comma-separated string: "-createdAt,accountNo"
-    if (typeof raw === 'string') {
+    if (typeof raw === "string") {
       return QueryOrderEngine.parseCommaSeparated(raw, spec);
     }
 
-    if (typeof raw !== 'object' || Object.keys(raw).length === 0) return [];
+    if (typeof raw !== "object" || Object.keys(raw).length === 0) return [];
 
     const entries = QueryOrderEngine.normalizeEntries(raw);
     const result: SortExpression[] = [];
@@ -46,19 +46,25 @@ export class QueryOrderEngine {
 
   // ── internal ────────────────────────────────────────────────────────────
 
-  private static parseCommaSeparated(raw: string, spec: ResourceQueryDefinition): SortExpression[] {
+  private static parseCommaSeparated(
+    raw: string,
+    spec: ResourceQueryDefinition,
+  ): SortExpression[] {
     const parts = raw
-      .split(',')
+      .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
     const result: SortExpression[] = [];
 
     for (const part of parts) {
-      const direction: SortDirection = part.startsWith('-') ? 'desc' : 'asc';
-      const field = part.startsWith('-') ? part.slice(1) : part;
+      const direction: SortDirection = part.startsWith("-") ? "desc" : "asc";
+      const field = part.startsWith("-") ? part.slice(1) : part;
 
       if (!field) {
-        throw new QuerioError('Empty sort field in sort parameter', ErrorCode.EMPTY_SORT_FIELD);
+        throw new QuerioError(
+          "Empty sort field in sort parameter",
+          ErrorCode.EMPTY_SORT_FIELD,
+        );
       }
 
       if (!Object.hasOwn(spec.fields, field) || !spec.fields[field].sortable) {
@@ -79,7 +85,9 @@ export class QueryOrderEngine {
    * Normalize the various shapes `qs` can produce for sort into
    * `[fieldName, direction]` tuples.
    */
-  private static normalizeEntries(raw: Record<string, unknown>): [string, SortDirection][] {
+  private static normalizeEntries(
+    raw: Record<string, unknown>,
+  ): [string, SortDirection][] {
     const entries: [string, SortDirection][] = [];
     const firstKey = Object.keys(raw)[0];
 
@@ -91,19 +99,25 @@ export class QueryOrderEngine {
 
         // String form (matches the JSDoc's `?sort[0]=-createdAt` format):
         // parse direction from a leading '-', tackling string and array inputs.
-        if (typeof entry === 'string') {
+        if (typeof entry === "string") {
           const parts = entry
-            .split(',')
+            .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
           if (parts.length === 0) {
-            throw new QuerioError(`Empty sort field in sort[${idx}]`, ErrorCode.EMPTY_SORT_FIELD, {
-              path: `sort[${idx}]`,
-            });
+            throw new QuerioError(
+              `Empty sort field in sort[${idx}]`,
+              ErrorCode.EMPTY_SORT_FIELD,
+              {
+                path: `sort[${idx}]`,
+              },
+            );
           }
           for (const part of parts) {
-            const direction: SortDirection = part.startsWith('-') ? 'desc' : 'asc';
-            const field = part.startsWith('-') ? part.slice(1) : part;
+            const direction: SortDirection = part.startsWith("-")
+              ? "desc"
+              : "asc";
+            const field = part.startsWith("-") ? part.slice(1) : part;
             if (!field) {
               throw new QuerioError(
                 `Empty sort field in sort[${idx}]`,
@@ -116,7 +130,7 @@ export class QueryOrderEngine {
           continue;
         }
 
-        if (!entry || typeof entry !== 'object') {
+        if (!entry || typeof entry !== "object") {
           throw new QuerioError(
             `sort[${idx}] must be an object like { fieldName: 'asc' }`,
             ErrorCode.INVALID_SORT_DIRECTION,
@@ -164,7 +178,7 @@ export class QueryOrderEngine {
 
   private static normalizeDirection(value: string): SortDirection | undefined {
     const lower = value.toLowerCase();
-    if (lower === 'asc' || lower === 'desc') return lower;
+    if (lower === "asc" || lower === "desc") return lower;
     return undefined;
   }
 }

@@ -1,1 +1,1 @@
-export { drizzleQueryAdapter, toDrizzleSQL } from './adapter';
+export { drizzleQueryAdapter, toDrizzleSQL } from "./adapter";

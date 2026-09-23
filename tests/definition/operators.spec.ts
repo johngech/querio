@@ -1,33 +1,33 @@
-import { describe, expect, it } from 'bun:test';
-import { OpBuilder, op } from '../../packages/core/src/operators/operators';
-import type { FilterOperator } from '../../packages/core/src/operators/types';
+import { describe, expect, it } from "bun:test";
+import { OpBuilder, op } from "../../packages/core/src/operators/operators";
+import type { FilterOperator } from "../../packages/core/src/operators/types";
 
-describe('OpBuilder', () => {
-  it('should create a builder with eq', () => {
-    const builder = new OpBuilder(['eq']);
-    expect(builder.done()).toEqual(['eq']);
+describe("OpBuilder", () => {
+  it("should create a builder with eq", () => {
+    const builder = new OpBuilder(["eq"]);
+    expect(builder.done()).toEqual(["eq"]);
   });
 
-  it('should chain multiple operators', () => {
-    const builder = new OpBuilder(['eq']);
+  it("should chain multiple operators", () => {
+    const builder = new OpBuilder(["eq"]);
     builder.notEqual().contains();
-    expect(builder.done()).toEqual(['eq', 'neq', 'contains']);
+    expect(builder.done()).toEqual(["eq", "neq", "contains"]);
   });
 
   const singleOps: [keyof typeof op, FilterOperator][] = [
-    ['equal', 'eq'],
-    ['notEqual', 'neq'],
-    ['greaterThan', 'gt'],
-    ['greaterThanOrEqual', 'gte'],
-    ['lessThan', 'lt'],
-    ['lessThanOrEqual', 'lte'],
-    ['contains', 'contains'],
-    ['startsWith', 'startsWith'],
-    ['endsWith', 'endsWith'],
-    ['in', 'in'],
-    ['notIn', 'notIn'],
-    ['isNull', 'isNull'],
-    ['isNotNull', 'isNotNull'],
+    ["equal", "eq"],
+    ["notEqual", "neq"],
+    ["greaterThan", "gt"],
+    ["greaterThanOrEqual", "gte"],
+    ["lessThan", "lt"],
+    ["lessThanOrEqual", "lte"],
+    ["contains", "contains"],
+    ["startsWith", "startsWith"],
+    ["endsWith", "endsWith"],
+    ["in", "in"],
+    ["notIn", "notIn"],
+    ["isNull", "isNull"],
+    ["isNotNull", "isNotNull"],
   ];
 
   for (const [method, expected] of singleOps) {
@@ -36,12 +36,12 @@ describe('OpBuilder', () => {
     });
   }
 
-  it('should chain multiple operators from a starting point', () => {
+  it("should chain multiple operators from a starting point", () => {
     const result = op.equal().notEqual().contains().startsWith().done();
-    expect(result).toEqual(['eq', 'neq', 'contains', 'startsWith']);
+    expect(result).toEqual(["eq", "neq", "contains", "startsWith"]);
   });
 
-  it('should return a copy of the operators array', () => {
+  it("should return a copy of the operators array", () => {
     const builder = op.equal();
     const result1 = builder.done();
     const result2 = builder.done();

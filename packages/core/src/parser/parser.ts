@@ -1,9 +1,9 @@
-import { resolveLimits } from '../definition/limits';
-import type { ResourceQueryDefinition } from '../definition/types';
-import type { QueryParams, RawParamValue, ResourceQuery } from '../query';
-import { QueryOrderEngine } from './order-engine';
-import { QuerySearchEngine } from './search-engine';
-import { QueryWhereEngine } from './where-engine';
+import { resolveLimits } from "../definition/limits";
+import type { ResourceQueryDefinition } from "../definition/types";
+import type { QueryParams, RawParamValue, ResourceQuery } from "../query";
+import { QueryOrderEngine } from "./order-engine";
+import { QuerySearchEngine } from "./search-engine";
+import { QueryWhereEngine } from "./where-engine";
 
 /**
  * Parses raw HTTP query parameters into a validated, application-level
@@ -19,7 +19,10 @@ import { QueryWhereEngine } from './where-engine';
  * const query = usersQuery.parse(params);
  * ```
  */
-export function parseQuery(raw: QueryParams, spec: ResourceQueryDefinition): ResourceQuery {
+export function parseQuery(
+  raw: QueryParams,
+  spec: ResourceQueryDefinition,
+): ResourceQuery {
   const limits = resolveLimits(spec.limits);
   const { filters, relations } = QueryWhereEngine.buildFilters(
     raw.filter,
@@ -40,13 +43,16 @@ function parsePagination(
   limits: ReturnType<typeof resolveLimits>,
 ): { page: number; limit: number } {
   const coerceInt = (value: RawParamValue, fallback: number): number => {
-    const n = typeof value === 'string' ? Number(value) : (value ?? Number.NaN);
+    const n = typeof value === "string" ? Number(value) : (value ?? Number.NaN);
     if (!Number.isFinite(n)) return fallback;
     return Math.trunc(n);
   };
 
   return {
     page: Math.min(limits.maxPage, Math.max(1, coerceInt(page, 1))),
-    limit: Math.min(limits.maxLimit, Math.max(1, coerceInt(limit, limits.defaultLimit))),
+    limit: Math.min(
+      limits.maxLimit,
+      Math.max(1, coerceInt(limit, limits.defaultLimit)),
+    ),
   };
 }

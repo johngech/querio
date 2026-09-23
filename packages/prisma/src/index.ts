@@ -1,2 +1,2 @@
-export type { PrismaOrderByInput, PrismaWhereInput } from './adapter';
-export { prismaQueryAdapter } from './adapter';
+export type { PrismaOrderByInput, PrismaWhereInput } from "./adapter";
+export { prismaQueryAdapter } from "./adapter";
