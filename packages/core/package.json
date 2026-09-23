@@ -44,6 +44,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "bun run build.ts",
     "test": "bun test",
