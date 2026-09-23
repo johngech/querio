@@ -25,7 +25,20 @@ export interface QueryDefinition extends ResourceQueryDefinition {
 function resolveFields(fields: Record<string, QueryField>): Record<string, FilterFieldSpec> {
   const resolved: Record<string, FilterFieldSpec> = {};
   for (const [name, value] of Object.entries(fields)) {
-    resolved[name] = value instanceof FieldBuilder ? value.build() : value;
+    // Detach from any caller-owned references (arrays are copied) and freeze
+    // the result so later mutation can't change parsing behavior.
+    const spec =
+      value instanceof FieldBuilder
+        ? value.build()
+        : {
+            ...value,
+            operators: value.operators ? [...value.operators] : value.operators,
+            enumValues: value.enumValues ? [...value.enumValues] : value.enumValues,
+          };
+    Object.freeze(spec);
+    if (Array.isArray(spec.operators)) Object.freeze(spec.operators);
+    if (Array.isArray(spec.enumValues)) Object.freeze(spec.enumValues);
+    resolved[name] = spec;
   }
   return resolved;
 }
@@ -37,10 +50,12 @@ function resolveRelations(
 
   const resolved: Record<string, RelationSpec> = {};
   for (const [name, relation] of Object.entries(relations)) {
-    resolved[name] = {
+    const spec = {
       fields: resolveFields(relation.fields),
       relations: resolveRelations(relation.relations),
     };
+    Object.freeze(spec);
+    resolved[name] = spec;
   }
   return resolved;
 }
@@ -73,7 +88,6 @@ function buildDefinition(def: {
  * });
  *
  * const query: ResourceQuery = usersQuery.parse(req.query);
- * // or: const query = parseQuery(req.query, usersQuery);
  * ```
  */
 export function defineQuery(def: {

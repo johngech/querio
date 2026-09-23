@@ -2,7 +2,7 @@
  * Querio public API.
  *
  * The intended surface is deliberately tiny:
- *   q, defineQuery, defineRelation, parseQuery, ResourceQuery, adapters
+ *   q, defineQuery, defineRelation, ResourceQuery, adapters
  *
  * The query-model types (FilterExpression, SortExpression, ...) are the
  * building blocks of {@link ResourceQuery} and are exported so adapter
@@ -16,8 +16,21 @@ export type { QueryDefinition } from './definition/builders';
 export { defineQuery, defineRelation } from './definition/builders';
 export type { ResourceQueryLimits } from './definition/limits';
 export { q } from './operators/q';
+export type {
+  LikeMatch,
+  NullHandling,
+  OperatorCategory,
+  OperatorSemantics,
+} from './operators/semantics';
+export {
+  buildLikePattern,
+  escapeLikeValue,
+  isEmptySubstringValue,
+  isStringOperator,
+  nullClauseFor,
+  OPERATOR_SEMANTICS,
+} from './operators/semantics';
 export type { FieldType, FilterOperator } from './operators/types';
-export { parseQuery } from './parser/parser';
 export type {
   FilterExpression,
   Pagination,

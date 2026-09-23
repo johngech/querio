@@ -6,14 +6,9 @@ import type {
   SearchQuery,
   SortExpression,
 } from '../../packages/core/src/index';
-import {
-  defineQuery,
-  defineRelation,
-  parseQuery,
-  QuerioError,
-  q,
-} from '../../packages/core/src/index';
+import { defineQuery, defineRelation, QuerioError, q } from '../../packages/core/src/index';
 import { QueryOrderEngine } from '../../packages/core/src/parser/order-engine';
+import { parseQuery } from '../../packages/core/src/parser/parser';
 import { QuerySearchEngine } from '../../packages/core/src/parser/search-engine';
 import { QueryWhereEngine } from '../../packages/core/src/parser/where-engine';
 
@@ -79,11 +74,11 @@ const FUZZ_SPEC = defineQuery({
 const MEMBER_FIELDS = FUZZ_SPEC.relations!.member.fields;
 
 const OPERATORS_BY_TYPE: Record<string, string[]> = {
-  string: ['eq', 'neq', 'contains', 'startsWith', 'endsWith', 'in', 'nin', 'isNull', 'isNotNull'],
+  string: ['eq', 'neq', 'contains', 'startsWith', 'endsWith', 'in', 'notIn', 'isNull', 'isNotNull'],
   number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isNull', 'isNotNull'],
   boolean: ['eq', 'isNull', 'isNotNull'],
   date: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'isNull', 'isNotNull'],
-  enum: ['eq', 'neq', 'in', 'nin', 'isNull', 'isNotNull'],
+  enum: ['eq', 'neq', 'in', 'notIn', 'isNull', 'isNotNull'],
 };
 
 const OP_TO_TUPLE: Record<FilterExpression['operator'], 'array' | 'no_val' | 'scalar'> = {
@@ -97,7 +92,7 @@ const OP_TO_TUPLE: Record<FilterExpression['operator'], 'array' | 'no_val' | 'sc
   startsWith: 'scalar',
   endsWith: 'scalar',
   in: 'array',
-  nin: 'array',
+  notIn: 'array',
   isNull: 'no_val',
   isNotNull: 'no_val',
 };
@@ -137,7 +132,7 @@ function randomWhere(
     const opCount = Math.floor(rand() * 2) + 1;
     for (let j = 0; j < opCount; j++) {
       const op = ops[Math.floor(rand() * ops.length)];
-      if (op === 'in' || op === 'nin') {
+      if (op === 'in' || op === 'notIn') {
         opset[op] = Array.from({ length: Math.floor(rand() * 3) }, () => randomPrimitive(rand));
       } else if (op === 'isNull' || op === 'isNotNull') {
         opset[op] = 'true';

@@ -37,8 +37,8 @@ describe('QueryWhereEngine', () => {
     }
   });
 
-  describe('implicit eq operator', () => {
-    it('creates eq filter for primitive value', () => {
+  describe('implicit equal operator', () => {
+    it('creates equal filter for primitive value', () => {
       const result = QueryWhereEngine.buildFilters({ status: 'ACTIVE' }, TEST_SPEC);
       expect(result.filters).toEqual([
         { field: 'status', operator: 'eq', value: 'ACTIVE', caseSensitive: false },
@@ -121,9 +121,9 @@ describe('QueryWhereEngine', () => {
         { field: 'status', operator: 'in', value: ['ACTIVE', 'PENDING'], caseSensitive: false },
       ],
       [
-        'nin (array)',
-        { status: { nin: ['INACTIVE'] } },
-        { field: 'status', operator: 'nin', value: ['INACTIVE'], caseSensitive: false },
+        'notIn (array)',
+        { status: { notIn: ['INACTIVE'] } },
+        { field: 'status', operator: 'notIn', value: ['INACTIVE'], caseSensitive: false },
       ],
       [
         'in (comma-separated)',
@@ -131,9 +131,14 @@ describe('QueryWhereEngine', () => {
         { field: 'status', operator: 'in', value: ['ACTIVE', 'PENDING'], caseSensitive: false },
       ],
       [
-        'nin (comma-separated with trimming)',
-        { status: { nin: ' INACTIVE , PENDING ' } },
-        { field: 'status', operator: 'nin', value: ['INACTIVE', 'PENDING'], caseSensitive: false },
+        'notIn (comma-separated with trimming)',
+        { status: { notIn: ' INACTIVE , PENDING ' } },
+        {
+          field: 'status',
+          operator: 'notIn',
+          value: ['INACTIVE', 'PENDING'],
+          caseSensitive: false,
+        },
       ],
     ];
 
@@ -171,6 +176,28 @@ describe('QueryWhereEngine', () => {
         'Invalid number',
       );
     });
+
+    it('accepts decimal and scientific number formats', () => {
+      for (const [input, expected] of [
+        ['25', 25],
+        ['-2.5', -2.5],
+        ['.5', 0.5],
+        ['+5', 5],
+        ['1e3', 1000],
+        ['1.5e-2', 0.015],
+      ] as const) {
+        const result = QueryWhereEngine.buildFilters({ age: input }, TEST_SPEC);
+        expect(result.filters[0].value).toBe(expected);
+      }
+    });
+
+    it('rejects hex, binary, octal, and non-finite number formats', () => {
+      for (const input of ['0x10', '0b101', '0o17', 'Infinity', '-Infinity', 'NaN', '12abc']) {
+        expect(() => QueryWhereEngine.buildFilters({ age: input }, TEST_SPEC)).toThrow(
+          'Invalid number',
+        );
+      }
+    });
   });
 
   describe('error handling', () => {
@@ -182,12 +209,15 @@ describe('QueryWhereEngine', () => {
       ['invalid date value', { createdAt: 'not-a-date' }, 'Invalid date value'],
       ['in with non-array', { status: { in: 123 } }, 'must be an array or a comma-separated list'],
       [
-        'nin with non-array',
-        { status: { nin: 123 } },
+        'notIn with non-array',
+        { status: { notIn: 123 } },
         'must be an array or a comma-separated list',
       ],
       ['isNull with false flag', { email: { isNull: false } }, 'expects the value'],
       ['isNotNull with false flag', { email: { isNotNull: 'false' } }, 'expects the value'],
+      ['contains with empty value', { firstName: { contains: '' } }, 'must not be empty'],
+      ['startsWith with whitespace', { firstName: { startsWith: '   ' } }, 'must not be empty'],
+      ['contains with missing value', { firstName: { contains: undefined } }, 'must not be empty'],
     ];
 
     for (const [label, input, message] of errorCases) {

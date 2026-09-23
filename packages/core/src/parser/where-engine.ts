@@ -5,11 +5,19 @@ import type {
   RelationSpec,
   ResourceQueryDefinition,
 } from '../definition/types';
+import { isEmptySubstringValue } from '../operators/semantics';
 import type { FieldType } from '../operators/types';
 import type { FilterExpression, RelationFilterExpression } from '../query/index';
 import { ErrorCode, QuerioError } from '../query/querio-error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Strict numeric wire format: optional sign, decimal, or scientific notation.
+ * Rejects hex/octal/binary literals (`0x10`, `0b101`, `0o17`), `Infinity`,
+ * `NaN`, and embedded garbage — `Number()` alone would silently coerce them.
+ */
+const NUMBER_REGEX = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 /**
  * Cached `Set` lookups so per-parse filter validation stays fast without
@@ -42,22 +50,31 @@ type TypeParser = (value: string, spec: FilterFieldSpec, field: string) => unkno
 const TYPE_PARSERS: Record<FieldType, TypeParser> = {
   string: (str) => str,
   boolean: (str) => {
-    if (str === 'true') return true;
-    if (str === 'false') return false;
+    const lower = str.toLowerCase();
+    if (lower === 'true') return true;
+    if (lower === 'false') return false;
     throw new QuerioError(
       `Invalid boolean value '${str}' (expected true or false)`,
       ErrorCode.INVALID_BOOLEAN,
     );
   },
   number: (str, _spec, field) => {
-    if (str.trim().length === 0) {
+    const trimmed = str.trim();
+    if (trimmed.length === 0) {
       throw new QuerioError(
         `Invalid number value for field '${field}' (empty value)`,
         ErrorCode.INVALID_NUMBER,
         { field },
       );
     }
-    const num = Number(str);
+    if (!NUMBER_REGEX.test(trimmed)) {
+      throw new QuerioError(
+        `Invalid number value '${str}' for field '${field}'`,
+        ErrorCode.INVALID_NUMBER,
+        { field },
+      );
+    }
+    const num = Number(trimmed);
     if (!Number.isFinite(num)) {
       throw new QuerioError(
         `Invalid number value '${str}' for field '${field}'`,
@@ -179,7 +196,7 @@ function validateConstraints(
  *   ?filter[status]=ACTIVE
  *   ?filter[createdAt][gte]=2026-01-01
  *   ?filter[member][firstName][contains]=abebe
- *   ?filter[status][in]=ACTIVE,PENDING        (comma-separated in/nin list)
+ *   ?filter[status][in]=ACTIVE,PENDING        (comma-separated in/notIn list)
  *   ?filter[org][parent][name]=x              → relation path 'org.parent'
  */
 export class QueryWhereEngine {
@@ -200,11 +217,15 @@ export class QueryWhereEngine {
       maxNestingDepth,
       '',
     );
-    if (filters.length > maxFilters) {
+    // `maxFilters` limits the total number of filter conditions, including
+    // those nested inside relation filters — otherwise a crafted query with
+    // many relation branches could build unbounded condition lists.
+    const totalCount = filters.length + relations.reduce((sum, rel) => sum + rel.filters.length, 0);
+    if (totalCount > maxFilters) {
       throw new QuerioError(
-        `Too many filters (${filters.length} exceeds maximum of ${maxFilters})`,
+        `Too many filters (${totalCount} exceeds maximum of ${maxFilters})`,
         ErrorCode.TOO_MANY_FILTERS,
-        { details: { count: filters.length, max: maxFilters } },
+        { details: { count: totalCount, max: maxFilters } },
       );
     }
     return { filters, relations };
@@ -329,11 +350,13 @@ export class QueryWhereEngine {
       }
 
       // Array operators — accept an array or a comma-separated list (?filter[x][in]=a,b,c)
-      if (operator === 'in' || operator === 'nin') {
+      if (operator === 'in' || operator === 'notIn') {
         const values = QueryWhereEngine.toArrayValue(val);
-        if (!values) {
+        if (!values || values.length === 0) {
           throw new QuerioError(
-            `Filter '${field}[${operator}]' must be an array or a comma-separated list`,
+            !values
+              ? `Filter '${field}[${operator}]' must be an array or a comma-separated list`
+              : `Filter '${field}[${operator}]' must contain at least one value`,
             ErrorCode.INVALID_FILTER_VALUE,
             { field, operator },
           );
@@ -365,13 +388,22 @@ export class QueryWhereEngine {
       }
 
       // Scalar operators — substring operators match fragments, so whole-value
-      // constraints (minLength, email, pattern) must not apply to them.
+      // constraints (minLength, email, pattern) must not apply to them. But an
+      // empty substring value would match every row (LIKE '%%'), so reject it.
       const partial =
         operator === 'contains' || operator === 'startsWith' || operator === 'endsWith';
+      const parsed = QueryWhereEngine.parseValue(val, fieldSpec, field, partial);
+      if (isEmptySubstringValue(operator as FilterOperator, parsed)) {
+        throw new QuerioError(
+          `Filter '${field}[${operator}]' must not be empty`,
+          ErrorCode.INVALID_FILTER_VALUE,
+          { field, operator },
+        );
+      }
       filters.push({
         field,
         operator: operator as FilterOperator,
-        value: QueryWhereEngine.parseValue(val, fieldSpec, field, partial),
+        value: parsed,
         caseSensitive: fieldSpec.caseSensitive,
       });
     }
@@ -380,7 +412,7 @@ export class QueryWhereEngine {
   }
 
   /**
-   * Normalize an `in`/`nin` value: an array passes through, a comma-separated
+   * Normalize an `in`/`notIn` value: an array passes through, a comma-separated
    * string is split (segments trimmed, empty segments dropped), anything else
    * is rejected.
    */

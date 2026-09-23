@@ -25,7 +25,7 @@ describe('OpBuilder', () => {
     ['startsWith', 'startsWith'],
     ['endsWith', 'endsWith'],
     ['in', 'in'],
-    ['notIn', 'nin'],
+    ['notIn', 'notIn'],
     ['isNull', 'isNull'],
     ['isNotNull', 'isNotNull'],
   ];

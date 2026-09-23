@@ -2,11 +2,11 @@ import { describe, expect, it } from 'bun:test';
 import {
   defineQuery,
   defineRelation,
-  parseQuery,
   type QueryParams,
   q,
   type SortExpression,
 } from '../../packages/core/src/index';
+import { parseQuery } from '../../packages/core/src/parser/parser';
 
 describe('QueryParser', () => {
   const TEST_SPEC = defineQuery({

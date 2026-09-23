@@ -9,7 +9,7 @@ import type { FilterOperator } from './types';
  * q.string().operators(op.equal().notEqual().contains())
  *
  * // Or call .done() to get the raw array
- * op.equal().notEqual().contains().done() // → ['eq', 'neq', 'contains']
+ * op.equal().notEqual().contains().done() // → ['equal', 'notEqual', 'contains']
  * ```
  */
 export class OpBuilder {
@@ -70,7 +70,7 @@ export class OpBuilder {
   }
 
   notIn(): this {
-    this._ops.push('nin');
+    this._ops.push('notIn');
     return this;
   }
 
@@ -102,7 +102,7 @@ export const op = {
   startsWith: () => new OpBuilder(['startsWith']),
   endsWith: () => new OpBuilder(['endsWith']),
   in: () => new OpBuilder(['in']),
-  notIn: () => new OpBuilder(['nin']),
+  notIn: () => new OpBuilder(['notIn']),
   isNull: () => new OpBuilder(['isNull']),
   isNotNull: () => new OpBuilder(['isNotNull']),
 };

@@ -12,7 +12,7 @@ describe('StringFieldBuilder', () => {
       'contains',
       'startsWith',
       'in',
-      'nin',
+      'notIn',
       'isNull',
       'isNotNull',
     ]);
@@ -154,7 +154,7 @@ describe('NumberFieldBuilder', () => {
 });
 
 describe('BooleanFieldBuilder', () => {
-  it('should build a boolean field with eq operator', () => {
+  it('should build a boolean field with equal operator', () => {
     const spec = q.boolean().build();
     expect(spec.type).toBe('boolean');
     expect(spec.operators).toEqual(['eq', 'isNull', 'isNotNull']);
@@ -184,7 +184,7 @@ describe('EnumFieldBuilder', () => {
     const spec = q.enum(['ACTIVE', 'INACTIVE']).build();
     expect(spec.type).toBe('enum');
     expect(spec.enumValues).toEqual(['ACTIVE', 'INACTIVE']);
-    expect(spec.operators).toEqual(['eq', 'neq', 'in', 'nin', 'isNull', 'isNotNull']);
+    expect(spec.operators).toEqual(['eq', 'neq', 'in', 'notIn', 'isNull', 'isNotNull']);
   });
 
   it('should set searchable', () => {

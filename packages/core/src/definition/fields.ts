@@ -8,9 +8,9 @@ import type { FieldType, FilterFieldSpec, FilterOperator } from './types';
  * Abstract base for all field builders.
  *
  * Three distinct responsibilities (architecture §4):
- * 1. Value Constraints — `.min()`, `.max()`, `.nullable()`
+ * 1. Value Constraints — `.min()`, `.max()`, `.pattern()`, `.email()`
  * 2. Query Capabilities — `.searchable()`, `.sortable()`
- * 3. Allowed Operators — `.operators(q.op.eq()...)`
+ * 3. Allowed Operators — `.operators(q.op.equal()...)`
  */
 abstract class FieldBuilder {
   protected _type: FieldType;
@@ -60,7 +60,9 @@ abstract class FieldBuilder {
    * Accepts an `OpBuilder` directly (e.g. `op.equal().notIn()`) or a raw array.
    */
   operators(ops: readonly FilterOperator[] | OpBuilder): this {
-    this._operators = ops instanceof OpBuilder ? ops.done() : ops;
+    // Copy on entry so later mutation of the caller's array can't change the
+    // built definition (and stale cached operator sets in the where engine).
+    this._operators = ops instanceof OpBuilder ? ops.done() : [...ops];
     return this;
   }
 
@@ -68,7 +70,7 @@ abstract class FieldBuilder {
   build(): FilterFieldSpec {
     return {
       type: this._type,
-      operators: this._operators,
+      operators: [...this._operators],
       sortable: this._sortable,
       searchable: this._searchable,
       nullable: this._nullable,
@@ -216,7 +218,7 @@ class EnumFieldBuilder extends FieldBuilder {
     const spec = super.build();
     return {
       ...spec,
-      enumValues: this._values,
+      enumValues: [...this._values],
     };
   }
 }

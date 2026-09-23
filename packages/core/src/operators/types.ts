@@ -1,9 +1,9 @@
-/** Framework-independent filter operators. */
+/** Framework-independent filter operators (full names — no short ids). */
 export type FilterOperator =
   | 'eq'
   | 'neq'
   | 'in'
-  | 'nin'
+  | 'notIn'
   | 'gt'
   | 'gte'
   | 'lt'

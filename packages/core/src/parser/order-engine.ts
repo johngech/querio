@@ -83,11 +83,39 @@ export class QueryOrderEngine {
     const entries: [string, SortDirection][] = [];
     const firstKey = Object.keys(raw)[0];
 
-    // Indexed array: { '0': { createdAt: 'desc' } }
+    // Indexed array: { '0': { createdAt: 'desc' } } or { '0': '-createdAt' }
     if (firstKey !== undefined && /^\d+$/.test(firstKey)) {
       const indices = Object.keys(raw).sort((a, b) => Number(a) - Number(b));
       for (const idx of indices) {
         const entry = raw[idx];
+
+        // String form (matches the JSDoc's `?sort[0]=-createdAt` format):
+        // parse direction from a leading '-', tackling string and array inputs.
+        if (typeof entry === 'string') {
+          const parts = entry
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (parts.length === 0) {
+            throw new QuerioError(`Empty sort field in sort[${idx}]`, ErrorCode.EMPTY_SORT_FIELD, {
+              path: `sort[${idx}]`,
+            });
+          }
+          for (const part of parts) {
+            const direction: SortDirection = part.startsWith('-') ? 'desc' : 'asc';
+            const field = part.startsWith('-') ? part.slice(1) : part;
+            if (!field) {
+              throw new QuerioError(
+                `Empty sort field in sort[${idx}]`,
+                ErrorCode.EMPTY_SORT_FIELD,
+                { path: `sort[${idx}]` },
+              );
+            }
+            entries.push([field, direction]);
+          }
+          continue;
+        }
+
         if (!entry || typeof entry !== 'object') {
           throw new QuerioError(
             `sort[${idx}] must be an object like { fieldName: 'asc' }`,

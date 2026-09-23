@@ -10,10 +10,13 @@ import { QueryWhereEngine } from './where-engine';
  * {@link ResourceQuery} against a resource definition built with
  * `defineQuery` (or a raw {@link ResourceQueryDefinition}).
  *
- * ```ts
- * import { defineQuery, parseQuery } from '@querio/core';
+ * @internal — consumers should use `defineQuery(...).parse(params)` instead;
+ * this function is the implementation behind {@link QueryDefinition.parse}.
  *
- * const query = parseQuery(params, usersQuery);
+ * ```ts
+ * import { defineQuery } from '@querio/core';
+ *
+ * const query = usersQuery.parse(params);
  * ```
  */
 export function parseQuery(raw: QueryParams, spec: ResourceQueryDefinition): ResourceQuery {

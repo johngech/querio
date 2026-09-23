@@ -78,6 +78,15 @@ describe('QueryOrderEngine', () => {
       ]);
     });
 
+    it('parses indexed string array', () => {
+      expect(
+        QueryOrderEngine.buildSort({ '0': '-createdAt', '1': 'firstName' }, TEST_SPEC),
+      ).toEqual([
+        { field: 'createdAt', direction: 'desc' },
+        { field: 'firstName', direction: 'asc' },
+      ]);
+    });
+
     it('parses indexed object array', () => {
       expect(
         QueryOrderEngine.buildSort(
@@ -102,7 +111,6 @@ describe('QueryOrderEngine', () => {
       ['non-sortable field', 'passwordHash', 'not a sortable field'],
       ['empty sort field', '-', 'Empty sort field'],
       ['invalid direction', { createdAt: 'random' }, 'Invalid sort direction'],
-      ['non-object indexed value', { '0': 'createdAt' } as never, 'must be an object'],
       [
         'multiple fields in indexed object',
         { '0': { createdAt: 'desc', firstName: 'asc' } },
