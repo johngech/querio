@@ -25,11 +25,13 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - run: bun install --frozen-lockfile
 
       - run: bun run build
+
+      - run: bun run smoke-pack
 
       - name: Publish packages
         env:
@@ -41,16 +43,18 @@ jobs:
           case "$tag_version" in
             *-*) dist_tag=next ;;
           esac
-          for pkg in packages/*; do
-            [ ! -f "$pkg/package.json" ] && continue
-            name="$(jq -r '.name' "$pkg/package.json")"
-            version="$(jq -r '.version' "$pkg/package.json")"
-            if [ "$pkg" = "packages/core" ] && [ "$version" != "$tag_version" ]; then
-              echo "::error::Tag $GITHUB_REF_NAME does not match @queryjs/core version $version; publish aborted." >&2
+          # All four packages version in lockstep (single changeset fixed group):
+          # the release tag must match every published version.
+          for pkg in core prisma drizzle typeorm; do
+            version="$(jq -r '.version' "packages/$pkg/package.json")"
+            if [ "$version" != "$tag_version" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match @queryjs/$pkg version $version; publish aborted." >&2
               exit 1
             fi
-            echo "Publishing $name@$version (dist-tag: $dist_tag)"
-            ( cd "$pkg" && bun publish --access public --tag "$dist_tag" )
+          done
+          for pkg in core prisma drizzle typeorm; do
+            echo "Publishing @queryjs/$pkg@$tag_version (dist-tag: $dist_tag)"
+            ( cd "packages/$pkg" && bun publish --access public --tag "$dist_tag" )
           done
 
       - name: Create GitHub Release
