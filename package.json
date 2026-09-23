@@ -6,6 +6,7 @@
   "name": "querio-monorepo",
   "scripts": {
     "build": "bun run build.ts",
+    "smoke-pack": "bun run scripts/smoke-pack.ts",
     "test": "bun test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

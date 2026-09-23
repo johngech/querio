@@ -231,6 +231,9 @@ function flattenChunks(chunks: readonly unknown[], out: string[]): void {
       Array.isArray((chunk as { value: unknown }).value)
     ) {
       out.push(String((chunk as { value: unknown[] }).value[0] ?? ''));
+    } else if (chunk != null && typeof chunk !== 'object') {
+      // Drizzle inlines numeric/boolean params as raw primitives.
+      out.push(String(chunk));
     }
   }
 }

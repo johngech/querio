@@ -546,12 +546,22 @@ querio/
 │   ├── parser/                 # parser, where/order/search engines, fuzz
 │   ├── validation/             # errors.spec.ts
 │   ├── compiler/               # compiler.spec.ts
-│   └── adapters/               # prisma, drizzle, typeorm, operator-parity
+│   ├── adapters/               # prisma, drizzle, typeorm, operator-parity
+│   └── docs/                   # readme-examples (README URL examples vs real parse output)
 │
 ├── docs/                       # this document, implementation status
+├── scripts/                    # sync-license, verify-doc-examples, smoke-pack
+├── build.ts                    # clean + tsc (declarations) + bundle ESM/CJS, smoke checks
 ├── package.json
 └── tsconfig.json
 ```
+
+**Packaging**: all four packages ship dual ESM + CJS. `tsc` emits declarations;
+Bun bundles the runtime files (`dist/index.js` ESM, `dist/index.cjs` CJS) so
+consumers never hit extension-less relative imports under Node ESM. Adapter and
+`@queryjs/core/compiler` bundles keep `@queryjs/core` and the host ORM
+**external** (peers). `bun run build` runs build-time smoke checks; `bun run
+smoke-pack` packs the tarballs and verifies `import` + `require` under Bun and Node.
 
 ### Enforcement Rules
 

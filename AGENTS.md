@@ -47,7 +47,8 @@ tests/
 - **Linter/formatter**: Biome 2.5.12 — single quotes, semicolons always, trailing commas, 100-char line width, space indent (2)
 - **Biome rules**: `useImportType: off`, `noNonNullAssertion: off`, `noStaticOnlyClass: off`
 - **Build**: per-package `tsconfig.build.json` excludes tests from dist output
-- **Output**: dual ESM + CJS via `bun build` (core), `tsc` only (adapters)
+- **Output**: dual ESM + CJS via `bun build` (core and adapters; `packages/core/compiler` subpath too). Adapters + the compiler subpath emit **declarations-only** from `tsc` and runtime files from `bun build`, because Node ESM rejects `tsc`'s extension-less relative imports. `tsc` outputs `index.js` only for core's bundled entry (not used at runtime).
+- **Packaging smoke test**: `bun run smoke-pack` packs all four tarballs, installs them plus peer ORMs into a throwaway project, and imports/requires every package (incl. `@queryjs/core/compiler`) under Bun and Node.
 - **Tests**: `.spec.ts` files, Bun's built-in test runner (no Jest/Vitest)
 - **Module format**: ESM (`"type": "module"` in all package.json files)
 - **Workspaces**: Bun workspaces via `"workspaces": ["packages/*"]` in root package.json
