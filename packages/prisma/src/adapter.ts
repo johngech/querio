@@ -88,7 +88,7 @@ function setOwnWhereField(
  *
  * A single operator per field renders as the compact merged shape (the
  * property keys are Prisma's own WhereInput names, e.g. `{ equals: 'ACTIVE' }`
- * — not Querio operator ids). When a field carries two or more operators,
+ * — not QueryJS operator ids). When a field carries two or more operators,
  * they are emitted as separate objects under `AND` — Prisma cannot always
  * combine arbitrary operators (e.g. `greaterThanOrEqual` + `equals`) in one
  * field filter, whereas an `AND` list merges them deterministically.
@@ -176,7 +176,7 @@ function toWhere(query: ResourceQuery): PrismaWhereInput | undefined {
 
 /**
  * Adapter for Prisma ORM.
- * Translates Querio's application-level queries to Prisma-compatible
+ * Translates QueryJS's application-level queries to Prisma-compatible
  * `where`, `orderBy`, and `skip/take` arguments.
  */
 export const prismaQueryAdapter = {

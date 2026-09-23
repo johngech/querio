@@ -1,7 +1,7 @@
 {
   "name": "@queryjs/drizzle",
   "version": "0.1.0",
-  "description": "Drizzle adapter for Querio",
+  "description": "Drizzle adapter for QueryJS",
   "license": "MIT",
   "repository": {
     "type": "git",

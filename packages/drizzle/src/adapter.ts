@@ -19,7 +19,7 @@ import { and, or, type SQL, sql } from 'drizzle-orm';
 
 /**
  * Adapter for Drizzle ORM.
- * Translates Querio's application-level queries into Drizzle-compatible
+ * Translates QueryJS's application-level queries into Drizzle-compatible
  * `where` and `orderBy` arguments (both are `SQL` fragments), plus `skip`/`take`.
  *
  * Usage:

@@ -1,5 +1,5 @@
 /**
- * Structured error codes for Querio, organized by category.
+ * Structured error codes for QueryJS, organized by category.
  */
 export enum ErrorCode {
   // Filter
@@ -42,7 +42,7 @@ export enum ErrorCode {
 }
 
 /**
- * Structured, developer-friendly error for Querio query parsing and validation.
+ * Structured, developer-friendly error for QueryJS query parsing and validation.
  *
  * Contains a machine-readable error code, optional field/operator/path context,
  * and an HTTP-compatible status code.

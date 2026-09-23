@@ -1,8 +1,10 @@
-# Querio
+# QueryJS
+
+[![npm version](https://img.shields.io/npm/v/@queryjs/core)](https://www.npmjs.com/package/@queryjs/core)
 
 Type-safe, declarative query language for TypeScript APIs.
 
-Querio parses raw HTTP query parameters (`filter`, `sort`, `search`, `pagination`) into validated, application-level `ResourceQuery` objects, then maps them to your ORM's expected format via pluggable adapters.
+QueryJS parses raw HTTP query parameters (`filter`, `sort`, `search`, `pagination`) into validated, application-level `ResourceQuery` objects, then maps them to your ORM's expected format via pluggable adapters.
 
 ## Features
 
@@ -200,6 +202,32 @@ const myAdapter: QueryMapperAdapter<MyWhere, MyOrderBy> = {
 
 const { where, orderBy, skip, take } = mapQuery(query, myAdapter);
 ```
+
+## Releasing
+
+Releases are versioned with [Changesets](https://github.com/changesets/changesets)
+and gated on CI — publishing never happens without a green check.
+
+1. Add a changeset describing the change:
+
+   ```bash
+   bun changeset    # patch / minor / major + summary
+   ```
+
+2. Commit and push to `main`. The `version` workflow opens (or updates) a
+   **Version Packages** PR.
+3. Merge that PR — versions are bumped and CHANGELOGs generated for all four
+   packages at once.
+4. Tag the release and push the tag:
+
+   ```bash
+   git tag v0.2.0                  # must match packages/core/package.json version
+   git push origin v0.2.0
+   ```
+
+5. The `release` workflow runs the full CI (lint, typecheck, tests, build) and —
+   **only if it passes** — publishes `@queryjs/core`, `@queryjs/prisma`,
+   `@queryjs/drizzle`, and `@queryjs/typeorm` to npm, then creates a GitHub Release.
 
 ## License
 

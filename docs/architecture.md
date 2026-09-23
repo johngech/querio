@@ -1,14 +1,14 @@
-# Querio Architecture
+# QueryJS Architecture
 
 > **A type-safe, declarative query language for TypeScript APIs.**
 
-Querio is designed to feel like a high-quality TypeScript developer library: small public API, predictable behavior, strong errors, clear architecture, and easy extensibility. This document is the **source of truth** for how the shipped code is structured. Do not introduce abstractions, dependencies, or shortcuts that violate these boundaries.
+QueryJS is designed to feel like a high-quality TypeScript developer library: small public API, predictable behavior, strong errors, clear architecture, and easy extensibility. This document is the **source of truth** for how the shipped code is structured. Do not introduce abstractions, dependencies, or shortcuts that violate these boundaries.
 
 ---
 
 ## 1. Processing Pipeline
 
-Querio parses raw HTTP query parameters into a validated, framework-independent query model (`ResourceQuery`), then compiles it to an ORM-specific representation via adapters.
+QueryJS parses raw HTTP query parameters into a validated, framework-independent query model (`ResourceQuery`), then compiles it to an ORM-specific representation via adapters.
 
 ```mermaid
 flowchart TD
@@ -77,10 +77,10 @@ flowchart BT
 The core must **never** depend on infrastructure. Forbidden dependencies:
 
 ```
-❌ Querio Core → Prisma
-❌ Querio Core → Drizzle
-❌ Querio Core → TypeORM
-❌ Querio Core → Express / Fastify / any HTTP framework
+❌ QueryJS Core → Prisma
+❌ QueryJS Core → Drizzle
+❌ QueryJS Core → TypeORM
+❌ QueryJS Core → Express / Fastify / any HTTP framework
 ❌ Query Definition → Database
 ❌ Query Model → SQL / ORM types
 ```
@@ -450,7 +450,7 @@ interface QueryMapperAdapter<TWhere = unknown, TOrderBy = unknown> {
 
 Implement `QueryMapperAdapter` and wrap with `mapQuery` (or `.map()`). Extensions use explicit contracts rather than internal implementation details.
 
-The adapter **owns** execution translation and must **not** modify Querio's semantic meaning.
+The adapter **owns** execution translation and must **not** modify QueryJS's semantic meaning.
 
 ---
 
@@ -475,7 +475,7 @@ Limits are resolved once per definition (`resolveLimits`) and cached.
 
 ## 14. Security and Complexity
 
-Querio is an API query language and assumes query input is **untrusted**.
+QueryJS is an API query language and assumes query input is **untrusted**.
 
 - **Prototype-pollution safety** — every field/relation/search-field lookup uses own-property checks (`Object.hasOwn`); `constructor`/`toString`/`__proto__` can never act as queryable fields.
 - **Strict type coercion** — numbers must match a strict wire format regex (rejects hex, octal, `Infinity`, `NaN`, embedded garbage); booleans only `true`/`false`; dates must parse; enums must be declared values.
@@ -608,11 +608,11 @@ Prefer compile-time safety for field builders, operator builders, field types, a
 
 ### Principle 8 — Framework independence
 
-Querio Core is usable without any HTTP framework or ORM.
+QueryJS Core is usable without any HTTP framework or ORM.
 
 ### Principle 9 — Extensibility
 
-Developers extend Querio with custom field types, custom adapters, and custom query capabilities — without modifying core. Extensions use explicit contracts.
+Developers extend QueryJS with custom field types, custom adapters, and custom query capabilities — without modifying core. Extensions use explicit contracts.
 
 ---
 
@@ -744,7 +744,7 @@ flowchart TD
     CA --> UE
 ```
 
-**The architectural law of Querio:**
+**The architectural law of QueryJS:**
 
 > **Define once. Parse and validate consistently. Represent semantically. Compile anywhere.**
 

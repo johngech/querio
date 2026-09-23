@@ -2,7 +2,7 @@
 
 ## Project
 
-Querio — type-safe, declarative query language for TypeScript APIs. Monorepo built with Bun.
+QueryJS — type-safe, declarative query language for TypeScript APIs. Monorepo built with Bun.
 
 ## Commands
 

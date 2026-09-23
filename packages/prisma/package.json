@@ -1,7 +1,7 @@
 {
   "name": "@queryjs/prisma",
   "version": "0.1.0",
-  "description": "Prisma adapter for Querio",
+  "description": "Prisma adapter for QueryJS",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,4 +1,4 @@
-# Querio — Implementation Status & Roadmap
+# QueryJS — Implementation Status & Roadmap
 
 > **Status doc, not a plan-doc.** This file describes what is shipped and what is
 > intentionally deferred. Anything marked "planned" is not yet implemented.
@@ -8,7 +8,7 @@
 
 ## Current Status
 
-Querio is a shipped, tested monorepo library reconstructing a declarative
+QueryJS is a shipped, tested monorepo library reconstructing a declarative
 query-schema and query-language system. The configuration-object API
 (`field.string({ sortable: true })`) was fully replaced by a fluent schema DSL
 (`q.string().sortable().operators(q.op.equal())`) with a compiler-based adapter
@@ -77,7 +77,9 @@ The following are **not** implemented. Do not assume they exist.
 
 - [ ] **Node-version CI matrix** (runtime is Bun-only today) and CJS adapter
       build output (adapters are ESM/`tsc` only).
-- [ ] **Publish workflow** (npm provenance, versioning strategy).
+- [x] **Publish workflow** — changesets versioning (`version.yml`) plus a
+      tag-gated release pipeline (`release.yml`): pushing a `v*` tag runs CI and,
+      only on pass, publishes `@queryjs/*` to npm via `bun publish`.
 - [ ] **Real-DB integration tests** — adapter tests use typed structural mocks,
       not a live database.
 
@@ -117,5 +119,5 @@ Highest-value, lowest-risk follow-ups, in order:
 1. **Add a real `count`/aggregation helper** the adapters agree on.
 2. **OR / NOT filter groups** with a backward-compatible extension to the filter
    wire format.
-3. **Node CI + CJS adapter output**, then npm publish pipeline.
+3. **Node CI matrix + CJS adapter output** (npm publish pipeline shipped).
 4. **Real-DB integration tests** (SQLite-at-minimum) behind a CI flag.

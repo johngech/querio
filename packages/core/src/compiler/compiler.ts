@@ -4,7 +4,7 @@ import type { ResourceQuery, SortExpression } from '../query';
 
 /**
  * Interface for ORM-specific query mapping adapters.
- * Implement this to translate Querio's application-level query objects
+ * Implement this to translate QueryJS's application-level query objects
  * into your ORM's expected format.
  */
 export interface QueryMapperAdapter<TWhere = unknown, TOrderBy = unknown> {

@@ -29,7 +29,7 @@ type TypeORMOrderBy = Record<string, 'ASC' | 'DESC'>;
 
 /**
  * Adapter for TypeORM.
- * Translates Querio's application-level queries to TypeORM-compatible
+ * Translates QueryJS's application-level queries to TypeORM-compatible
  * `where`, `order`, and `skip/take` arguments using real `FindOperator`s
  * (`In`, `Not`, `MoreThan`, `ILike`, `IsNull`, ...).
  *

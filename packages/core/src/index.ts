@@ -1,5 +1,5 @@
 /**
- * Querio public API.
+ * QueryJS public API.
  *
  * The intended surface is deliberately tiny:
  *   q, defineQuery, defineRelation, ResourceQuery, adapters
