@@ -8,7 +8,7 @@ import type {
 import { isEmptySubstringValue } from '../operators/semantics';
 import type { FieldType } from '../operators/types';
 import type { FilterExpression, RelationFilterExpression } from '../query/index';
-import { ErrorCode, QuerioError } from '../query/querio-error';
+import { ErrorCode, QueryJSError } from '../query/queryjs-error';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +62,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
     const lower = str.toLowerCase();
     if (lower === 'true') return true;
     if (lower === 'false') return false;
-    throw new QuerioError(
+    throw new QueryJSError(
       `Invalid boolean value '${str}' (expected true or false)`,
       ErrorCode.INVALID_BOOLEAN,
     );
@@ -70,14 +70,14 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
   number: (str, _spec, field) => {
     const trimmed = str.trim();
     if (trimmed.length === 0) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid number value for field '${field}' (empty value)`,
         ErrorCode.INVALID_NUMBER,
         { field },
       );
     }
     if (!NUMBER_REGEX.test(trimmed)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid number value '${str}' for field '${field}'`,
         ErrorCode.INVALID_NUMBER,
         { field },
@@ -85,7 +85,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
     }
     const num = Number(trimmed);
     if (!Number.isFinite(num)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid number value '${str}' for field '${field}'`,
         ErrorCode.INVALID_NUMBER,
         { field },
@@ -95,7 +95,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
   },
   date: (str, _spec, field) => {
     if (!ISO_DATE_REGEX.test(str.trim())) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid date value '${str}' for field '${field}' (expected ISO 8601)`,
         ErrorCode.INVALID_DATE,
         { field },
@@ -103,7 +103,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
     }
     const date = new Date(str);
     if (Number.isNaN(date.getTime())) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid date value '${str}' for field '${field}' (expected ISO 8601)`,
         ErrorCode.INVALID_DATE,
         { field },
@@ -114,7 +114,7 @@ const TYPE_PARSERS: Record<FieldType, TypeParser> = {
   enum: (str, spec, field) => {
     const allowed = getEnumValueSet(spec);
     if (allowed && !allowed.has(str)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid enum value '${str}' for field '${field}' (allowed: ${spec.enumValues?.join(', ')})`,
         ErrorCode.INVALID_ENUM_VALUE,
         { field, details: { allowed: spec.enumValues } },
@@ -143,7 +143,7 @@ function validateConstraints(
 
   if (fieldSpec.type === 'string' && !partial) {
     if (fieldSpec.minLength !== undefined && str.length < fieldSpec.minLength) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.minLengthMsg ||
           `Value for field '${field}' must be at least ${fieldSpec.minLength} characters (got ${str.length})`,
         ErrorCode.VALUE_TOO_SHORT,
@@ -154,7 +154,7 @@ function validateConstraints(
       );
     }
     if (fieldSpec.maxLength !== undefined && str.length > fieldSpec.maxLength) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.maxLengthMsg ||
           `Value for field '${field}' must be at most ${fieldSpec.maxLength} characters (got ${str.length})`,
         ErrorCode.VALUE_TOO_LONG,
@@ -165,14 +165,14 @@ function validateConstraints(
       );
     }
     if (fieldSpec.isEmail && !EMAIL_REGEX.test(str)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.emailMsg || `Value for field '${field}' must be a valid email address`,
         ErrorCode.VALUE_NOT_EMAIL,
         { field },
       );
     }
     if (fieldSpec.pattern && !fieldSpec.pattern.test(str)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.patternMsg || `Value for field '${field}' does not match required pattern`,
         ErrorCode.VALUE_PATTERN_MISMATCH,
         { field, details: { pattern: fieldSpec.pattern.source } },
@@ -182,7 +182,7 @@ function validateConstraints(
 
   if (fieldSpec.type === 'number' && typeof value === 'number') {
     if (fieldSpec.min !== undefined && value < fieldSpec.min) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.minMsg ||
           `Value for field '${field}' must be at least ${fieldSpec.min} (got ${value})`,
         ErrorCode.VALUE_OUT_OF_RANGE,
@@ -190,7 +190,7 @@ function validateConstraints(
       );
     }
     if (fieldSpec.max !== undefined && value > fieldSpec.max) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.maxMsg ||
           `Value for field '${field}' must be at most ${fieldSpec.max} (got ${value})`,
         ErrorCode.VALUE_OUT_OF_RANGE,
@@ -198,7 +198,7 @@ function validateConstraints(
       );
     }
     if (fieldSpec.isInteger && !Number.isInteger(value)) {
-      throw new QuerioError(
+      throw new QueryJSError(
         fieldSpec.integerMsg || `Value for field '${field}' must be an integer (got ${value})`,
         ErrorCode.VALUE_NOT_INTEGER,
         { field, details: { actual: value } },
@@ -244,7 +244,7 @@ export class QueryWhereEngine {
     // many relation branches could build unbounded condition lists.
     const totalCount = filters.length + relations.reduce((sum, rel) => sum + rel.filters.length, 0);
     if (totalCount > maxFilters) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Too many filters (${totalCount} exceeds maximum of ${maxFilters})`,
         ErrorCode.TOO_MANY_FILTERS,
         { details: { count: totalCount, max: maxFilters } },
@@ -262,7 +262,7 @@ export class QueryWhereEngine {
     relationPath: string,
   ): { filters: FilterExpression[]; relations: RelationFilterExpression[] } {
     if (depth > maxNestingDepth) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Maximum relation nesting depth (${maxNestingDepth}) exceeded at '${path}'`,
         ErrorCode.FILTER_DEPTH_EXCEEDED,
         { path },
@@ -300,7 +300,7 @@ export class QueryWhereEngine {
       // Scalar field? (own-property check only)
       const fieldSpec = Object.hasOwn(spec.fields, key) ? spec.fields[key] : undefined;
       if (!fieldSpec) {
-        throw new QuerioError(`Unknown filter field: '${key}'`, ErrorCode.UNKNOWN_FIELD, {
+        throw new QueryJSError(`Unknown filter field: '${key}'`, ErrorCode.UNKNOWN_FIELD, {
           field: key,
         });
       }
@@ -339,7 +339,7 @@ export class QueryWhereEngine {
     relationPath: string;
   } {
     if (!value || typeof value !== 'object') {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Relation '${key}' must be an object (e.g. ?filter[${key}][fieldName]=value)`,
         ErrorCode.RELATION_MUST_BE_OBJECT,
         { field: key },
@@ -367,7 +367,7 @@ export class QueryWhereEngine {
 
     for (const [operator, val] of Object.entries(raw)) {
       if (!QueryWhereEngine.isAllowedOperator(operator, fieldSpec)) {
-        throw new QuerioError(
+        throw new QueryJSError(
           `Operator '${operator}' is not supported for field '${field}' (allowed: ${[...fieldSpec.operators].join(', ')})`,
           ErrorCode.UNSUPPORTED_OPERATOR,
           { field, operator, details: { allowed: [...fieldSpec.operators] } },
@@ -378,7 +378,7 @@ export class QueryWhereEngine {
       if (operator === 'in' || operator === 'notIn') {
         const values = QueryWhereEngine.toArrayValue(val);
         if (!values || values.length === 0) {
-          throw new QuerioError(
+          throw new QueryJSError(
             !values
               ? `Filter '${field}[${operator}]' must be an array or a comma-separated list`
               : `Filter '${field}[${operator}]' must contain at least one value`,
@@ -401,7 +401,7 @@ export class QueryWhereEngine {
       if (operator === 'isNull' || operator === 'isNotNull') {
         const flag = typeof val === 'boolean' ? val : String(val) === 'true';
         if (flag !== true) {
-          throw new QuerioError(
+          throw new QueryJSError(
             `Filter '${field}[${operator}]' expects the value 'true'` +
               (operator === 'isNull' ? " (use 'isNotNull' for not-null checks)" : ''),
             ErrorCode.INVALID_FILTER_VALUE,
@@ -423,7 +423,7 @@ export class QueryWhereEngine {
         operator === 'contains' || operator === 'startsWith' || operator === 'endsWith';
       const parsed = QueryWhereEngine.parseValue(val, fieldSpec, field, partial);
       if (isEmptySubstringValue(operator as FilterOperator, parsed)) {
-        throw new QuerioError(
+        throw new QueryJSError(
           `Filter '${field}[${operator}]' must not be empty`,
           ErrorCode.INVALID_FILTER_VALUE,
           { field, operator },
@@ -476,7 +476,7 @@ export class QueryWhereEngine {
     // into `[object Object]` (which would silently pass validation).
     const isScalar = typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean';
     if (!isScalar) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Invalid value for field '${field}' (expected a scalar value, got ${
           Array.isArray(raw) ? 'an array' : 'an object'
         })`,

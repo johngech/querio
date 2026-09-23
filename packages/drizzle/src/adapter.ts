@@ -5,7 +5,7 @@ import {
   isStringOperator,
   type LikeMatch,
   nullClauseFor,
-  QuerioError,
+  QueryJSError,
   type RelationFilterExpression,
   type ResourceQuery,
   type SearchQuery,
@@ -131,7 +131,7 @@ function conditionFor(
 
   const build = OPERATOR_SQL[operator];
   if (!build) {
-    throw new QuerioError(`Unsupported operator '${operator}'`, ErrorCode.UNSUPPORTED_OPERATOR, {
+    throw new QueryJSError(`Unsupported operator '${operator}'`, ErrorCode.UNSUPPORTED_OPERATOR, {
       operator,
     });
   }

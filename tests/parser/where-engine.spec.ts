@@ -3,7 +3,7 @@ import {
   defineQuery,
   defineRelation,
   type FilterExpression,
-  QuerioError,
+  QueryJSError,
 } from '../../packages/core/src/index';
 import { q } from '../../packages/core/src/operators/q';
 import { QueryWhereEngine } from '../../packages/core/src/parser/where-engine';
@@ -206,7 +206,7 @@ describe('QueryWhereEngine', () => {
 
     it('validates enum values', () => {
       expect(() => QueryWhereEngine.buildFilters({ status: 'INVALID' }, TEST_SPEC)).toThrow(
-        QuerioError,
+        QueryJSError,
       );
     });
 
@@ -493,14 +493,14 @@ describe('QueryWhereEngine', () => {
 
     for (const key of hostileKeys) {
       it(`rejects '${key}' as unknown field instead of crashing`, () => {
-        expect(() => QueryWhereEngine.buildFilters({ [key]: 1 }, TEST_SPEC)).toThrow(QuerioError);
+        expect(() => QueryWhereEngine.buildFilters({ [key]: 1 }, TEST_SPEC)).toThrow(QueryJSError);
       });
     }
 
     it('rejects a hostile key as an operator', () => {
       expect(() =>
         QueryWhereEngine.buildFilters({ status: { constructor: 'ACTIVE' } }, TEST_SPEC),
-      ).toThrow(QuerioError);
+      ).toThrow(QueryJSError);
     });
   });
 });

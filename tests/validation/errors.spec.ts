@@ -1,29 +1,37 @@
 import { describe, expect, it } from 'bun:test';
-import { ErrorCode, QuerioError } from '../../packages/core/src/query/querio-error';
+import { ErrorCode, QuerioError, QueryJSError } from '../../packages/core/src/query/queryjs-error';
 
-describe('QuerioError', () => {
+describe('QueryJSError', () => {
   it('should be an instance of Error', () => {
-    const err = new QuerioError('test', ErrorCode.UNKNOWN_FIELD);
+    const err = new QueryJSError('test', ErrorCode.UNKNOWN_FIELD);
     expect(err).toBeInstanceOf(Error);
   });
 
-  it('should set name to QuerioError', () => {
+  it('should set name to QueryJSError', () => {
+    const err = new QueryJSError('test', ErrorCode.UNKNOWN_FIELD);
+    expect(err.name).toBe('QueryJSError');
+  });
+
+  it('should keep QuerioError as a deprecated alias and prove instanceof', () => {
     const err = new QuerioError('test', ErrorCode.UNKNOWN_FIELD);
-    expect(err.name).toBe('QuerioError');
+    expect(err).toBeInstanceOf(QueryJSError);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).toBe('QueryJSError');
+    expect(err.code).toBe(ErrorCode.UNKNOWN_FIELD);
   });
 
   it('should set message', () => {
-    const err = new QuerioError('something went wrong', ErrorCode.UNKNOWN_FIELD);
+    const err = new QueryJSError('something went wrong', ErrorCode.UNKNOWN_FIELD);
     expect(err.message).toBe('something went wrong');
   });
 
   it('should set code', () => {
-    const err = new QuerioError('test', ErrorCode.UNSUPPORTED_OPERATOR);
+    const err = new QueryJSError('test', ErrorCode.UNSUPPORTED_OPERATOR);
     expect(err.code).toBe(ErrorCode.UNSUPPORTED_OPERATOR);
   });
 
   it('should return statusCode 400', () => {
-    const err = new QuerioError('test', ErrorCode.UNKNOWN_FIELD);
+    const err = new QueryJSError('test', ErrorCode.UNKNOWN_FIELD);
     expect(err.statusCode).toBe(400);
   });
 
@@ -35,23 +43,23 @@ describe('QuerioError', () => {
 
   for (const [prop, opts, expected] of optionalFields) {
     it(`should accept optional ${prop}`, () => {
-      const err = new QuerioError(
+      const err = new QueryJSError(
         'test',
         ErrorCode.UNKNOWN_FIELD,
         opts as { field?: string; operator?: string; path?: string },
       );
-      expect(err[prop as keyof QuerioError]).toBe(expected);
+      expect(err[prop as keyof QueryJSError]).toBe(expected);
     });
   }
 
   it('should accept optional details', () => {
     const details = { allowed: ['eq', 'neq'], received: 'contains' };
-    const err = new QuerioError('test', ErrorCode.UNSUPPORTED_OPERATOR, { details });
+    const err = new QueryJSError('test', ErrorCode.UNSUPPORTED_OPERATOR, { details });
     expect(err.details).toEqual(details);
   });
 
   it('should default optional fields to undefined', () => {
-    const err = new QuerioError('test', ErrorCode.UNKNOWN_FIELD);
+    const err = new QueryJSError('test', ErrorCode.UNKNOWN_FIELD);
     expect(err.field).toBeUndefined();
     expect(err.operator).toBeUndefined();
     expect(err.path).toBeUndefined();
@@ -60,9 +68,9 @@ describe('QuerioError', () => {
 
   it('should be catchable as Error', () => {
     try {
-      throw new QuerioError('test', ErrorCode.UNKNOWN_FIELD);
+      throw new QueryJSError('test', ErrorCode.UNKNOWN_FIELD);
     } catch (e) {
-      expect(e).toBeInstanceOf(QuerioError);
+      expect(e).toBeInstanceOf(QueryJSError);
       expect(e).toBeInstanceOf(Error);
     }
   });

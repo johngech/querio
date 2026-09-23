@@ -45,4 +45,4 @@ export type {
   SortDirection,
   SortExpression,
 } from './query/index';
-export { ErrorCode, QuerioError } from './query/querio-error';
+export { ErrorCode, QuerioError, QueryJSError } from './query/queryjs-error';

@@ -1,7 +1,7 @@
 import type { ResourceQueryDefinition } from '../definition/types';
 import type { SearchLimits, SearchMatch, SearchQuery, SearchTerm } from '../query/index';
 import { DEFAULT_SEARCH_LIMITS } from '../query/index';
-import { ErrorCode, QuerioError } from '../query/querio-error';
+import { ErrorCode, QueryJSError } from '../query/queryjs-error';
 
 interface TokenizedPiece {
   value: string;
@@ -35,7 +35,7 @@ export class QuerySearchEngine {
     if (trimmed.length === 0) return undefined;
 
     if (trimmed.length > limits.maxLength) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Search query exceeds maximum length of ${limits.maxLength} characters`,
         ErrorCode.SEARCH_TOO_LONG,
       );
@@ -43,7 +43,7 @@ export class QuerySearchEngine {
 
     const fields = QuerySearchEngine.collectSearchableFields(spec);
     if (fields.length === 0) {
-      throw new QuerioError(
+      throw new QueryJSError(
         'Search is not supported for this resource',
         ErrorCode.NO_SEARCHABLE_FIELDS,
       );
@@ -82,11 +82,11 @@ export class QuerySearchEngine {
     }
 
     if (terms.length === 0) {
-      throw new QuerioError('Search query is empty after parsing', ErrorCode.EMPTY_SEARCH_QUERY);
+      throw new QueryJSError('Search query is empty after parsing', ErrorCode.EMPTY_SEARCH_QUERY);
     }
 
     if (terms.length > limits.maxTerms) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Search query exceeds maximum of ${limits.maxTerms} terms`,
         ErrorCode.TOO_MANY_SEARCH_TERMS,
       );
@@ -94,7 +94,7 @@ export class QuerySearchEngine {
 
     for (const term of terms) {
       if (term.value.length > limits.maxTermLength) {
-        throw new QuerioError(
+        throw new QueryJSError(
           `Search term exceeds maximum length of ${limits.maxTermLength} characters`,
           ErrorCode.SEARCH_TERM_TOO_LONG,
         );
@@ -122,7 +122,7 @@ export class QuerySearchEngine {
         const start = i;
         while (i < raw.length && raw[i] !== '"') i++;
         if (i >= raw.length) {
-          throw new QuerioError(
+          throw new QueryJSError(
             'Unterminated search phrase (missing closing quote)',
             ErrorCode.UNTERMINATED_PHRASE,
           );
@@ -159,7 +159,7 @@ export class QuerySearchEngine {
         const maybeField = value.slice(0, colonIdx);
         if (Object.hasOwn(spec.fields, maybeField)) {
           if (!spec.fields[maybeField].searchable) {
-            throw new QuerioError(
+            throw new QueryJSError(
               `Cannot search on field '${maybeField}' (not a searchable field)`,
               ErrorCode.NON_SEARCHABLE_FIELD,
               { field: maybeField },
@@ -169,7 +169,7 @@ export class QuerySearchEngine {
           value = value.slice(colonIdx + 1);
         } else {
           // Unknown field — reject deterministically
-          throw new QuerioError(
+          throw new QueryJSError(
             `Unknown search field '${maybeField}'`,
             ErrorCode.UNKNOWN_SEARCH_FIELD,
             { field: maybeField },
@@ -180,7 +180,7 @@ export class QuerySearchEngine {
 
     // Reject standalone * (empty prefix) — covers both `*` and `field:*`
     if (!isPhrase && value === '*') {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Empty search value in term '${piece.value}'`,
         ErrorCode.EMPTY_SEARCH_VALUE,
       );
@@ -195,7 +195,7 @@ export class QuerySearchEngine {
 
     // Validate the value is not empty
     if (value.trim().length === 0) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Empty search value in term '${piece.value}'`,
         ErrorCode.EMPTY_SEARCH_VALUE,
       );

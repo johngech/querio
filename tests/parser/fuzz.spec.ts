@@ -6,7 +6,7 @@ import type {
   SearchQuery,
   SortExpression,
 } from '../../packages/core/src/index';
-import { defineQuery, defineRelation, QuerioError, q } from '../../packages/core/src/index';
+import { defineQuery, defineRelation, QueryJSError, q } from '../../packages/core/src/index';
 import { QueryOrderEngine } from '../../packages/core/src/parser/order-engine';
 import { parseQuery } from '../../packages/core/src/parser/parser';
 import { QuerySearchEngine } from '../../packages/core/src/parser/search-engine';
@@ -156,7 +156,7 @@ describe('fuzz — where engine invariants', () => {
       try {
         result = QueryWhereEngine.buildFilters(input, FUZZ_SPEC as ResourceQueryDefinition);
       } catch (error) {
-        expect(error).toBeInstanceOf(QuerioError);
+        expect(error).toBeInstanceOf(QueryJSError);
         continue;
       }
 
@@ -229,7 +229,7 @@ describe('fuzz — order engine invariants', () => {
       try {
         result = QueryOrderEngine.buildSort(raw, FUZZ_SPEC as ResourceQueryDefinition);
       } catch (error) {
-        expect(error).toBeInstanceOf(QuerioError);
+        expect(error).toBeInstanceOf(QueryJSError);
         continue;
       }
       for (const sort of result) {
@@ -252,7 +252,7 @@ describe('fuzz — search engine invariants', () => {
           FUZZ_SPEC as ResourceQueryDefinition,
         );
       } catch (error) {
-        expect(error).toBeInstanceOf(QuerioError);
+        expect(error).toBeInstanceOf(QueryJSError);
         continue;
       }
       if (!result) continue;

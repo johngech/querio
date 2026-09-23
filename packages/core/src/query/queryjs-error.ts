@@ -47,7 +47,7 @@ export enum ErrorCode {
  * Contains a machine-readable error code, optional field/operator/path context,
  * and an HTTP-compatible status code.
  */
-export class QuerioError extends Error {
+export class QueryJSError extends Error {
   readonly code: ErrorCode;
   readonly field?: string;
   readonly operator?: string;
@@ -69,7 +69,7 @@ export class QuerioError extends Error {
     },
   ) {
     super(message);
-    this.name = 'QuerioError';
+    this.name = 'QueryJSError';
     this.code = code;
     this.field = options?.field;
     this.operator = options?.operator;
@@ -77,3 +77,7 @@ export class QuerioError extends Error {
     this.details = options?.details;
   }
 }
+
+/** @deprecated Use QueryJSError. Will be removed in a future minor release. */
+export const QuerioError = QueryJSError;
+export type QuerioError = QueryJSError;

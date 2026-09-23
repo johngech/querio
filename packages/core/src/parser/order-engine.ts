@@ -1,6 +1,6 @@
 import type { ResourceQueryDefinition } from '../definition/types';
 import type { SortDirection, SortExpression } from '../query/index';
-import { ErrorCode, QuerioError } from '../query/querio-error';
+import { ErrorCode, QueryJSError } from '../query/queryjs-error';
 
 /**
  * Validates raw `sort` input from the query string against a
@@ -42,7 +42,7 @@ export class QueryOrderEngine {
 
   private static assertSortableField(field: string, spec: ResourceQueryDefinition): void {
     if (!Object.hasOwn(spec.fields, field) || !spec.fields[field].sortable) {
-      throw new QuerioError(
+      throw new QueryJSError(
         `Cannot sort by '${field}' (not a sortable field)`,
         ErrorCode.NON_SORTABLE_FIELD,
         { field },
@@ -62,7 +62,7 @@ export class QueryOrderEngine {
       const field = part.startsWith('-') ? part.slice(1) : part;
 
       if (!field) {
-        throw new QuerioError('Empty sort field in sort parameter', ErrorCode.EMPTY_SORT_FIELD);
+        throw new QueryJSError('Empty sort field in sort parameter', ErrorCode.EMPTY_SORT_FIELD);
       }
 
       QueryOrderEngine.assertSortableField(field, spec);
@@ -95,7 +95,7 @@ export class QueryOrderEngine {
             .map((s) => s.trim())
             .filter(Boolean);
           if (parts.length === 0) {
-            throw new QuerioError(`Empty sort field in sort[${idx}]`, ErrorCode.EMPTY_SORT_FIELD, {
+            throw new QueryJSError(`Empty sort field in sort[${idx}]`, ErrorCode.EMPTY_SORT_FIELD, {
               path: `sort[${idx}]`,
             });
           }
@@ -103,7 +103,7 @@ export class QueryOrderEngine {
             const direction: SortDirection = part.startsWith('-') ? 'desc' : 'asc';
             const field = part.startsWith('-') ? part.slice(1) : part;
             if (!field) {
-              throw new QuerioError(
+              throw new QueryJSError(
                 `Empty sort field in sort[${idx}]`,
                 ErrorCode.EMPTY_SORT_FIELD,
                 { path: `sort[${idx}]` },
@@ -115,7 +115,7 @@ export class QueryOrderEngine {
         }
 
         if (!entry || typeof entry !== 'object') {
-          throw new QuerioError(
+          throw new QueryJSError(
             `sort[${idx}] must be an object like { fieldName: 'asc' }`,
             ErrorCode.INVALID_SORT_DIRECTION,
             { path: `sort[${idx}]` },
@@ -123,7 +123,7 @@ export class QueryOrderEngine {
         }
         const innerKeys = Object.keys(entry as Record<string, unknown>);
         if (innerKeys.length !== 1) {
-          throw new QuerioError(
+          throw new QueryJSError(
             `sort[${idx}] must have exactly one field`,
             ErrorCode.INVALID_SORT_DIRECTION,
             { path: `sort[${idx}]` },
@@ -133,7 +133,7 @@ export class QueryOrderEngine {
         const dir = (entry as Record<string, unknown>)[field];
         const normalized = QueryOrderEngine.normalizeDirection(String(dir));
         if (!normalized) {
-          throw new QuerioError(
+          throw new QueryJSError(
             `Invalid sort direction '${dir}' for field '${field}' (use 'asc' or 'desc')`,
             ErrorCode.INVALID_SORT_DIRECTION,
             { field },
@@ -148,7 +148,7 @@ export class QueryOrderEngine {
     for (const [field, dir] of Object.entries(raw)) {
       const normalized = QueryOrderEngine.normalizeDirection(String(dir));
       if (!normalized) {
-        throw new QuerioError(
+        throw new QueryJSError(
           `Invalid sort direction '${dir}' for field '${field}' (use 'asc' or 'desc')`,
           ErrorCode.INVALID_SORT_DIRECTION,
           { field },
