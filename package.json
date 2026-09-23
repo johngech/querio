@@ -3,7 +3,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "name": "querio-monorepo",
+  "name": "queryjs-monorepo",
   "scripts": {
     "build": "bun run build.ts",
     "smoke-pack": "bun run scripts/smoke-pack.ts",
@@ -22,7 +22,7 @@
     "@types/bun": "^1.3.14",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "typeorm": "^0.3.24",
+    "typeorm": "^1.1.1",
     "typescript": "^7.0.0"
   },
   "lint-staged": {
