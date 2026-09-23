@@ -5,7 +5,9 @@
   ],
   "name": "queryjs-monorepo",
   "scripts": {
+    "prebuild": "bun run scripts/sync-license.ts",
     "build": "bun run build.ts",
+    "sync-license": "bun run scripts/sync-license.ts",
     "smoke-pack": "bun run scripts/smoke-pack.ts",
     "test": "bun test",
     "lint": "biome check .",

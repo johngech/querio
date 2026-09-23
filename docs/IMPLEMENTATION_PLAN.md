@@ -99,7 +99,7 @@ implementation this was intentionally simplified:
 
 - **No tokenizer/AST stage.** Tokenization, grammar, and validation are folded
   into the `where`/`order`/`search` engines. The public surface is smaller and
-  there is only one structured error type, `QuerioError`.
+  there is only one structured error type, `QueryJSError`.
 - **Adapter contract stayed `buildWhere/buildOrderBy/buildSkipTake`** (returning
   `where`/`orderBy`/`skip`/`take`), rather than a renamed `compile()`.
 

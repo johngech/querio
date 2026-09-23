@@ -1,223 +1,206 @@
 # QueryJS
 
 [![npm version](https://img.shields.io/npm/v/@queryjs/core)](https://www.npmjs.com/package/@queryjs/core)
+[![npm version](https://img.shields.io/npm/v/@queryjs/prisma)](https://www.npmjs.com/package/@queryjs/prisma)
+[![npm version](https://img.shields.io/npm/v/@queryjs/drizzle)](https://www.npmjs.com/package/@queryjs/drizzle)
+[![npm version](https://img.shields.io/npm/v/@queryjs/typeorm)](https://www.npmjs.com/package/@queryjs/typeorm)
+[![CI](https://github.com/johngech/queryjs/actions/workflows/ci.yml/badge.svg)](https://github.com/johngech/queryjs/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/johngech/queryjs/blob/main/LICENSE)
 
-Type-safe, declarative query language for TypeScript APIs.
+Type-safe, declarative query language for TypeScript REST APIs.
 
-QueryJS parses raw HTTP query parameters (`filter`, `sort`, `search`, `pagination`) into validated, application-level `ResourceQuery` objects, then maps them to your ORM's expected format via pluggable adapters.
+QueryJS parses raw HTTP query parameters — `filter`, `sort`, `search`, and pagination — into validated, typed `ResourceQuery` objects, then maps them to your ORM's expected format through pluggable adapters.
 
-## Features
+## Why QueryJS?
 
-- **Framework-agnostic** — no HTTP-framework or backend dependencies (works with Express, Fastify, Koa, plain Node, ...)
-- **ORM adapters** — Prisma, TypeORM, Drizzle (extensible interface)
-- **Type-safe** — full TypeScript types for all query objects
-- **Validated** — clear error messages for invalid query parameters
-- **Flexible** — supports complex filters, relation filters, search with phrases/prefixes
+Hand-rolled `req.query` handling is stringly-typed, unvalidated, and coupled to one ORM. QueryJS replaces it with a **declared schema** on each resource, giving you:
 
-## Installation
+- **Framework-agnostic** — no HTTP or backend dependencies. Works with Express, Fastify, Koa, plain Node, Bun, and anything else. Framework examples are included.
+- **Schema-first** — define which fields are filterable, sortable, and searchable once, per resource, with `defineQuery` + the fluent `q` builder.
+- **Validated & safe** — unknown fields, unsupported operators, malformed values, and hostile inputs (`__proto__`, over-deep relations, oversized filters) are rejected with structured `QueryJSError`s — not passed through to your database.
+- **ORM-agnostic output** — parse once, map to Prisma, Drizzle, TypeORM, or your own adapter through the tiny `QueryMapperAdapter` interface.
+- **Type-safe end to end** — full TypeScript types on every query object and adapter result.
 
-```bash
-bun add @queryjs/core @queryjs/prisma   # or @queryjs/drizzle / @queryjs/typeorm
-```
+## Packages
+
+| Package | Description | npm |
+| --- | --- | --- |
+| [`@queryjs/core`](packages/core) | Schema definition (`defineQuery`, `q`), the query parser, `ResourceQuery` model, and the mapper/compiler. | [npm](https://www.npmjs.com/package/@queryjs/core) |
+| [`@queryjs/prisma`](packages/prisma) | Prisma adapter — maps queries to `where`, `orderBy`, `skip`, `take`. | [npm](https://www.npmjs.com/package/@queryjs/prisma) |
+| [`@queryjs/drizzle`](packages/drizzle) | Drizzle adapter — maps queries to SQL `where`/`orderBy` fragments. | [npm](https://www.npmjs.com/package/@queryjs/drizzle) |
+| [`@queryjs/typeorm`](packages/typeorm) | TypeORM adapter — maps queries to `where`/`order` built from real `FindOperator`s. | [npm](https://www.npmjs.com/package/@queryjs/typeorm) |
+
+Each package has a focused README with its full API reference:
+
+- [@queryjs/core](packages/core/README.md) — **start here**
+- [@queryjs/prisma](packages/prisma/README.md)
+- [@queryjs/drizzle](packages/drizzle/README.md)
+- [@queryjs/typeorm](packages/typeorm/README.md)
 
 ## Quick Start
+
+```bash
+bun add @queryjs/core @queryjs/prisma
+# or: @queryjs/drizzle / @queryjs/typeorm
+```
 
 ```typescript
 import { defineQuery, defineRelation, q } from '@queryjs/core';
 import { prismaQueryAdapter } from '@queryjs/prisma';
 
-// 1. Define your resource schema with the fluent `q` API
-const memberQuery = defineRelation({
-  fields: {
-    accountNo: q.string().sortable().searchable(),
-  },
-});
-
 const usersQuery = defineQuery({
   fields: {
     status: q.enum(['ACTIVE', 'INACTIVE']).sortable().searchable(),
-    firstName: q.string().sortable().searchable().operators(q.op.equal().contains()),
+    name: q.string().sortable().searchable(),
     email: q.string().sortable(),
     age: q.number().sortable(),
     createdAt: q.date().sortable(),
   },
   relations: {
-    member: memberQuery,
+    member: defineRelation({
+      fields: { accountNo: q.string().sortable().searchable() },
+    }),
   },
 });
 
-// 2. Parse raw query params into a validated ResourceQuery
-function list(params: Record<string, unknown>) {
-  const query = usersQuery.parse(params);
-
-  // 3. Map to your ORM
+// In your route:
+function listUsers(params: Record<string, unknown>) {
+  const query = usersQuery.parse(params); // → validated ResourceQuery
   const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
   return prisma.user.findMany({ where, orderBy, skip, take });
 }
 ```
 
+See the [@queryjs/core README](packages/core/README.md#quick-start) for a full input → parse → map walkthrough.
+
 ## Query Syntax
+
+The wire format is compact and URL-friendly. `parse` turns these into validated `ResourceQuery` objects, then adapters translate them to your ORM. Every example below is asserted against real parser output by [`tests/docs/readme-examples.spec.ts`](https://github.com/johngech/queryjs/blob/main/tests/docs/readme-examples.spec.ts).
 
 ### Filtering
 
 ```
-?filter[status]=ACTIVE                    → [{ field: 'status', operator: 'equal', value: 'ACTIVE' }]
-?filter[age][greaterThanOrEqual]=18       → [{ field: 'age', operator: 'greaterThanOrEqual', value: 18 }]
-?filter[status][in][]=ACTIVE&filter[status][in][]=PENDING
-                                            → [{ field: 'status', operator: 'in', value: ['ACTIVE', 'PENDING'] }]
-?filter[email][isNull]=true               → [{ field: 'email', operator: 'isNull' }]
+?filter[status]=ACTIVE                     → { field: 'status', operator: 'eq', value: 'ACTIVE' }
+?filter[age][gte]=18&filter[age][lt]=65    → two eq/gte/lt filters on age, AND-ed
+&sort=-createdAt&page=2&limit=25
+?filter[status][in][]=ACTIVE&filter[status][in][]=INACTIVE
+                                             → { field: 'status', operator: 'in', value: ['ACTIVE', 'INACTIVE'] }
+?filter[email][isNull]=true                → { field: 'email', operator: 'isNull' }
+?filter[member][accountNo]=AC-1            → relation 'member', filters: [accountNo eq 'AC-1']
+?filter[org][parent][name]=Acme            → nested relation 'org.parent', filters: [name eq 'Acme']
 ```
 
-> **Note:** array operators (`in`, `notIn`) accept repeated `op[]=` parameters **or** a comma-separated list (e.g. `?filter[status][in]=ACTIVE,PENDING`).
+Operators (wire ids): `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `notIn`, `contains`, `startsWith`, `endsWith`, `isNull`, `isNotNull`.
+
+**Null handling:** `isNull`/`isNotNull` are the way to query `NULL` over HTTP. Operators that accept a value (`eq`, `neq`, …) also interpret a literal `null` input as `IS NULL` / `IS NOT NULL`.
 
 ### Sorting
 
 ```
-?sort=-createdAt                          → [{ field: 'createdAt', direction: 'desc' }]
-?sort=lastName,-firstName                 → [{ field: 'lastName', direction: 'asc' }, { field: 'firstName', direction: 'desc' }]
-?sort[createdAt]=desc                     → [{ field: 'createdAt', direction: 'desc' }]
+?sort=-createdAt                           → [{ field: 'createdAt', direction: 'desc' }]
+?sort=status,-createdAt                    → [{ field: 'status', direction: 'asc' }, { field: 'createdAt', direction: 'desc' }]
+?sort[createdAt]=desc                      → [{ field: 'createdAt', direction: 'desc' }]
 ```
+
+Prefix a field with `-` for descending order (or use the object form).
 
 ### Searching
 
 ```
-?search=abebe                             → contains match (any searchable field)
-?search="abebe beke"                      → phrase match (exact substring)
+?search=abebe                             → contains match on every searchable field
+?search="abebe beke"                      → phrase match (contiguous substring)
 ?search=abe*                              → prefix match
-?search=firstName:abebe                   → field-specific match
-?search=firstName:abe*                    → field-specific prefix
+?search=name:abebe                        → contains match on name only
+?search=name:abe*                         → prefix match on name only
+?search=name:abebe status:ACTIVE          → AND across terms
 ```
 
 ### Pagination
 
 ```
-?page=2&limit=25                          → { page: 2, limit: 25 }
+?page=2&limit=25                            → { page: 2, limit: 25 }
+?page=abc                                   → { page: 1, limit: 10 }  (coerced, never errors)
+?page=1000001&limit=9999                    → { page: 1000000, limit: 100 }  (clamped)
 ```
 
-## Field Definition
+Defaults: `page = 1`, `limit = 10`. Page and limit are coerced and clamped into `[1, cap]` (defaults: `maxPage = 1_000_000`, `maxLimit = 100`).
 
-Available builders: `q.string()`, `q.number()`, `q.boolean()`, `q.date()`, `q.enum(values)`.
+### Example applications
 
-Common modifiers:
+Live, runnable servers that wire each adapter to a real framework and database:
 
-- `.sortable()` / `.searchable()` — opt in to sorting/searching
-- `.operators(q.op.equal().contains()...)` — allow specific comparison operators
-- `.min(n)` / `.max(n)` / `.pattern(re)` / `.email()` — value constraints
-- `.caseSensitive()` — string comparisons respect case (default: insensitive)
+- [examples/express-prisma](https://github.com/johngech/queryjs/tree/main/examples/express-prisma) — Express + Prisma + SQLite
+- [examples/fastify-drizzle](https://github.com/johngech/queryjs/tree/main/examples/fastify-drizzle) — Fastify + Drizzle + SQLite
+- [examples/express-typeorm](https://github.com/johngech/queryjs/tree/main/examples/express-typeorm) — Express + TypeORM + SQLite
 
-Fine-tune allowed operators per field type:
-
-```typescript
-import { q } from '@queryjs/core';
-
-const spec = q.string().operators(
-  q.op.equal().notEqual().contains().endsWith().in().notIn().isNull().isNotNull(),
-);
-```
-
-## Query Limits
-
-Set per-resource caps on pagination, filters, relation depth, and search. All limits are optional and fall back to the library defaults.
-
-```typescript
-const usersQuery = defineQuery({
-  fields: { /* ... */ },
-  limits: {
-    maxPage: 1000,        // default 1_000_000
-    maxLimit: 50,         // default 100
-    defaultLimit: 20,     // default 10
-    maxFilters: 50,       // default 100
-    maxNestingDepth: 3,   // default 2 (relation filter depth)
-    search: {             // overrides DEFAULT_SEARCH_LIMITS
-      maxLength: 300,     // default 200 (raw search string)
-      maxTerms: 5,        // default 10
-      maxTermLength: 100, // default 100
-    },
-  },
-});
-```
+Each example includes a seed script and `curl` examples covering filters, sort, search, pagination, and validation errors.
 
 ## Adapters
 
-### Prisma
+| Adapter package | Map result | README |
+| --- | --- | --- |
+| `@queryjs/prisma` | `{ where: PrismaWhereInput, orderBy: PrismaOrderByInput[], skip, take }` | [README](packages/prisma/README.md) |
+| `@queryjs/drizzle` | `{ where: SQL, orderBy: SQL[], skip, take }` | [README](packages/drizzle/README.md) |
+| `@queryjs/typeorm` | `{ where: TypeORMWhere \| TypeORMWhere[], orderBy: TypeORMOrderBy, skip, take }` | [README](packages/typeorm/README.md) |
+
+All three share identical semantics for the same query (see the operator parity tests in [`tests/adapters/operator-parity.spec.ts`](https://github.com/johngech/queryjs/blob/main/tests/adapters/operator-parity.spec.ts)). Bring your own ORM with a [custom adapter](packages/core/README.md#custom-adapters).
+
+## Error Handling
+
+Every parse/validation failure throws a single, structured exception:
 
 ```typescript
-import { prismaQueryAdapter } from '@queryjs/prisma';
-
-const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
-await prisma.user.findMany({ where, orderBy, skip, take });
+class QueryJSError extends Error {
+  readonly code: ErrorCode;        // e.g. 'UNKNOWN_FIELD', 'INVALID_NUMBER', ...
+  readonly field?: string;         // offending field, when relevant
+  readonly operator?: string;      // offending operator, when relevant
+  readonly path?: string;          // relation path, when relevant
+  readonly details?: unknown;      // extra context
+  get statusCode(): number;        // → 400
+}
 ```
 
-### TypeORM
+Map `ErrorCode` to HTTP responses in your error middleware:
 
 ```typescript
-import { typeormQueryAdapter } from '@queryjs/typeorm';
+import { QueryJSError } from '@queryjs/core';
 
-const { where, orderBy, skip, take } = typeormQueryAdapter.map(query);
-await userRepository.find({ where, order: orderBy, skip, take });
+app.use((err, req, res, next) => {
+  if (err instanceof QueryJSError) {
+    const { message, code, field, operator, path, details } = err;
+    return res.status(400).json({ error: { message, code, field, operator, path, details } });
+  }
+  next(err);
+});
 ```
 
-### Drizzle
+## Security Notes
 
-```typescript
-import { drizzleQueryAdapter, toDrizzleSQL } from '@queryjs/drizzle';
+QueryJS is designed to be safe when parsing untrusted query strings:
 
-const { where, orderBy, skip, take } = drizzleQueryAdapter.map(query);
-const rows = await db
-  .select()
-  .from(users)
-  .where(where)
-  .orderBy(...(orderBy ?? []))
-  .limit(take)
-  .offset(skip);
+- **Whitelist only.** Only fields declared in your schema can appear in a query; unknown fields are rejected before they reach the database.
+- **Hostile keys.** `__proto__`, `constructor`, etc. are handled via own-property semantics so they cannot corrupt the emitted where objects.
+- **Hard caps by default.** `maxFilters = 100`, `maxNestingDepth = 2`, `maxPage = 1_000_000`, `maxLimit = 100`, and bounded search lengths/term counts prevent query blow-up (huge OR lists, deep nesting, long offsets). Tune per query with `limits` in `defineQuery`.
+- **LIKE injection.** Substring operators escape `%`, `_`, and `\` so user input is matched literally, and values are passed through each adapter's parameterized SQL.
 
-// The where/orderBy values are Drizzle SQL fragments; `toDrizzleSQL` flattens
-// one back to a plain SQL string when you need raw SQL (debugging, sql`…` tags):
-// const sqlText = toDrizzleSQL(where);
-```
+## Compatibility
 
-> **Note:** relation filters (`?filter[member][accountNo]=…`) assume the relation
-> was joined under a table alias matching the relation path
-> (e.g. `leftJoin(users.member, member)`).
-
-### Custom Adapters
-
-Implement the `QueryMapperAdapter` interface and wrap it with a `map()` helper:
-
-```typescript
-import type { ResourceQuery, SortExpression } from '@queryjs/core';
-import { mapQuery, type QueryMapperAdapter } from '@queryjs/core/compiler';
-
-const myAdapter: QueryMapperAdapter<MyWhere, MyOrderBy> = {
-  buildWhere(query: ResourceQuery) {
-    // Translate to your ORM's where format
-  },
-  buildOrderBy(sort: SortExpression[]) {
-    // Translate to your ORM's order format
-  },
-  buildSkipTake(page: number, limit: number) {
-    return { skip: (page - 1) * limit, take: limit };
-  },
-};
-
-const { where, orderBy, skip, take } = mapQuery(query, myAdapter);
-```
+- **Runtime:** Node.js ≥ 18, Bun. No runtime HTTP dependency.
+- **Modules:** all four packages ship dual ESM + CJS (adapter ESM/CJS keep `@queryjs/core`, `@queryjs/core/compiler`, and the host ORM as externals/peers).
+- **TypeScript:** strictly typed declarations, compiled with modern TS (verified with TypeScript 5+ and 7).
 
 ## Releasing
 
-Releases are versioned with [Changesets](https://github.com/changesets/changesets)
-and gated on CI — publishing never happens without a green check.
+Releases are driven by [Changesets](https://github.com/changesets/changesets) and gated on CI — publishing never happens without a green check (lint, typecheck, tests, build, packaging smoke test).
 
-1. Add a changeset describing the change:
+1. Add a changeset:
 
    ```bash
    bun changeset    # patch / minor / major + summary
    ```
 
-2. Commit and push to `main`. The `version` workflow opens (or updates) a
-   **Version Packages** PR.
-3. Merge that PR — versions are bumped and CHANGELOGs generated for all four
-   packages at once.
+2. Commit and push to `main`. The `version` workflow opens (or updates) a **Version Packages** PR.
+3. Merge that PR — versions are bumped and CHANGELOGs generated for all four packages at once.
 4. Tag the release and push the tag:
 
    ```bash
@@ -225,10 +208,21 @@ and gated on CI — publishing never happens without a green check.
    git push origin v0.2.0
    ```
 
-5. The `release` workflow runs the full CI (lint, typecheck, tests, build) and —
-   **only if it passes** — publishes `@queryjs/core`, `@queryjs/prisma`,
-   `@queryjs/drizzle`, and `@queryjs/typeorm` to npm, then creates a GitHub Release.
+   All four packages version in lockstep (one changeset `fixed` group), so the tag must match every package's `version` — the release workflow verifies all four before publishing.
+
+5. The `release` workflow runs the full CI (including the packaging smoke test that installs the packed tarballs) and, only if it passes, publishes `@queryjs/core`, `@queryjs/prisma`, `@queryjs/drizzle`, and `@queryjs/typeorm` to npm and creates a GitHub Release.
+
+## Documentation
+
+- [docs/architecture.md](https://github.com/johngech/queryjs/blob/main/docs/architecture.md) — design notes, wire protocol, parser/engine breakdown
+- [docs/IMPLEMENTATION_PLAN.md](https://github.com/johngech/queryjs/blob/main/docs/IMPLEMENTATION_PLAN.md) — roadmap and history
+
+## Contributing
+
+- Repo: [github.com/johngech/queryjs](https://github.com/johngech/queryjs)
+- Issues: [github.com/johngech/queryjs/issues](https://github.com/johngech/queryjs/issues)
+- Core conventions live in [AGENTS.md](https://github.com/johngech/queryjs/blob/main/AGENTS.md). Pre-commit order: `bun run lint` → `bun run typecheck` → `bun test`.
 
 ## License
 
-MIT
+MIT © Yohannes Getachew

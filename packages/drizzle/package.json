@@ -1,17 +1,18 @@
 {
   "name": "@queryjs/drizzle",
   "version": "0.1.0",
-  "description": "Drizzle adapter for QueryJS",
+  "description": "Drizzle adapter for QueryJS: translates validated ResourceQuery objects into Drizzle SQL where and orderBy fragments plus skip and take.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/johngech/querio.git"
+    "url": "git+https://github.com/johngech/queryjs.git",
+    "directory": "packages/drizzle"
   },
   "author": "Yohannes Getachew <yohngech@gmail.com>",
   "bugs": {
-    "url": "https://github.com/johngech/querio/issues"
+    "url": "https://github.com/johngech/queryjs/issues"
   },
-  "homepage": "https://github.com/johngech/querio#readme",
+  "homepage": "https://github.com/johngech/queryjs/tree/main/packages/drizzle#readme",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -54,9 +55,11 @@
     "typescript": "^7.0.2"
   },
   "keywords": [
-    "querio",
+    "queryjs",
     "drizzle",
     "orm",
-    "adapter"
+    "adapter",
+    "query",
+    "query-parser"
   ]
 }

@@ -1,17 +1,18 @@
 {
   "name": "@queryjs/prisma",
   "version": "0.1.0",
-  "description": "Prisma adapter for QueryJS",
+  "description": "Prisma adapter for QueryJS: translates validated ResourceQuery objects into Prisma where, orderBy, skip, and take arguments.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/johngech/querio.git"
+    "url": "git+https://github.com/johngech/queryjs.git",
+    "directory": "packages/prisma"
   },
   "author": "Yohannes Getachew <yohngech@gmail.com>",
   "bugs": {
-    "url": "https://github.com/johngech/querio/issues"
+    "url": "https://github.com/johngech/queryjs/issues"
   },
-  "homepage": "https://github.com/johngech/querio#readme",
+  "homepage": "https://github.com/johngech/queryjs/tree/main/packages/prisma#readme",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -52,9 +53,11 @@
     "typescript": "^7.0.0"
   },
   "keywords": [
-    "querio",
+    "queryjs",
     "prisma",
     "orm",
-    "adapter"
+    "adapter",
+    "query",
+    "query-parser"
   ]
 }

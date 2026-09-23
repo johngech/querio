@@ -1,17 +1,18 @@
 {
   "name": "@queryjs/core",
   "version": "0.1.0",
-  "description": "Framework-agnostic query parsing, validation, and ORM mapping for REST APIs",
+  "description": "Type-safe, declarative query language for REST APIs: parse filter, sort, search, and pagination HTTP query parameters into validated ResourceQuery objects, then map them to any ORM via pluggable adapters.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/johngech/querio.git"
+    "url": "git+https://github.com/johngech/queryjs.git",
+    "directory": "packages/core"
   },
   "author": "Yohannes Getachew <yohngech@gmail.com>",
   "bugs": {
-    "url": "https://github.com/johngech/querio/issues"
+    "url": "https://github.com/johngech/queryjs/issues"
   },
-  "homepage": "https://github.com/johngech/querio#readme",
+  "homepage": "https://github.com/johngech/queryjs/tree/main/packages/core#readme",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -66,10 +67,12 @@
   "keywords": [
     "query",
     "parser",
+    "query-parser",
     "filter",
     "sort",
     "search",
     "pagination",
+    "queryjs",
     "orm",
     "rest",
     "api"

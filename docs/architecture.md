@@ -178,7 +178,7 @@ q.string()   q.number()   q.boolean()   q.date()   q.enum(values)
 .min(n)  .max(n)  .pattern(re)   .email()   (strings)
 ```
 
-Constraint violations surface as structured `QuerioError`s with machine-readable codes. Each constraint may carry a custom error message.
+Constraint violations surface as structured `QueryJSError`s with machine-readable codes. Each constraint may carry a custom error message.
 
 ### Query capabilities
 
@@ -202,7 +202,7 @@ Keep these concepts separate. Do not collapse them into a single generic configu
 
 Operators live under the `q.op` namespace and are composed with `OpBuilder`, a fluent builder that returns a `FilterOperator[]`.
 
-Short operator ids (`eq`, `neq`, `gt`, `gtq`) are the canonical **wire format**. The fluent API intentionally exposes readable names:
+Short operator ids (`eq`, `neq`, `gt`, `gte`) are the canonical **wire format**. The fluent API intentionally exposes readable names:
 
 | Fluent (public API)          | Wire id        | Meaning                    |
 |------------------------------|----------------|----------------------------|
@@ -216,7 +216,7 @@ Short operator ids (`eq`, `neq`, `gt`, `gtq`) are the canonical **wire format**.
 | `q.op.startsWith()`          | `startsWith`   | prefix                     |
 | `q.op.endsWith()`            | `endsWith`     | suffix                     |
 | `q.op.in()`                  | `in`           | in list                    |
-| `q.op.notIn()`               | `nin`          | not in list                |
+| `q.op.notIn()`               | `notIn`         | not in list                |
 | `q.op.isNull()`              | `isNull`       | is NULL                    |
 | `q.op.isNotNull()`           | `isNotNull`    | is not NULL                |
 
@@ -488,7 +488,7 @@ QueryJS is an API query language and assumes query input is **untrusted**.
 
 ## 15. Error Architecture
 
-Errors are structured and machine-readable through a single type, `QuerioError`, carrying an `ErrorCode`.
+Errors are structured and machine-readable through a single type, `QueryJSError`, carrying an `ErrorCode`.
 
 ```
 message · code · field? · operator? · path? · details?  ·  statusCode (400)
@@ -498,20 +498,21 @@ Codes are grouped by category:
 
 ```
 Filter:   UNKNOWN_FIELD, UNSUPPORTED_OPERATOR, INVALID_FILTER_VALUE,
-          FILTER_DEPTH_EXCEEDED, RELATION_MUST_BE_OBJECT, TOO_MANY_FILTERS
+          FILTER_DEPTH_EXCEEDED, RELATION_MUST_BE_OBJECT
 Sort:     NON_SORTABLE_FIELD, INVALID_SORT_DIRECTION, EMPTY_SORT_FIELD
 Search:   NO_SEARCHABLE_FIELDS, SEARCH_TOO_LONG, TOO_MANY_SEARCH_TERMS,
           SEARCH_TERM_TOO_LONG, NON_SEARCHABLE_FIELD, UNKNOWN_SEARCH_FIELD,
           EMPTY_SEARCH_VALUE, EMPTY_SEARCH_QUERY, UNTERMINATED_PHRASE
 Value:    INVALID_BOOLEAN, INVALID_NUMBER, INVALID_DATE, INVALID_ENUM_VALUE,
           VALUE_TOO_SHORT, VALUE_TOO_LONG, VALUE_OUT_OF_RANGE,
-          VALUE_NOT_INTEGER, VALUE_NOT_EMAIL, VALUE_PATTERN_MISMATCH
+          VALUE_NOT_INTEGER, VALUE_NOT_EMAIL, VALUE_PATTERN_MISMATCH,
+          TOO_MANY_FILTERS
 ```
 
 Example:
 
 ```
-QuerioError: Operator 'contains' is not supported for field 'isSystem' (allowed: eq)
+QueryJSError: Operator 'contains' is not supported for field 'isSystem' (allowed: eq)
 code: UNSUPPORTED_OPERATOR · field: 'isSystem' · operator: 'contains' · statusCode: 400
 ```
 
@@ -522,7 +523,7 @@ Error messages never leak ORM or database implementation details.
 ## 16. Package Structure
 
 ```
-querio/
+queryjs/
 │
 ├── packages/
 │   ├── core/
@@ -530,7 +531,7 @@ querio/
 │   │       ├── definition/     # defineQuery, defineRelation, field builders, limits, types
 │   │       ├── operators/      # q namespace, OpBuilder, operator semantics, defaults
 │   │       ├── parser/         # parseQuery + where/order/search engines
-│   │       ├── query/          # FilterExpression, SortExpression, SearchQuery, ResourceQuery, QuerioError
+│   │       ├── query/          # FilterExpression, SortExpression, SearchQuery, ResourceQuery, QueryJSError
 │   │       ├── compiler/       # QueryMapper, mapQuery, adapter contracts
 │   │       └── index.ts        # PUBLIC BARREL — the only public surface
 │   │
