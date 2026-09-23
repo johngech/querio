@@ -55,9 +55,9 @@ tests/
 ## Gotchas
 
 - `index.ts` is the ONLY public surface for core. Import `parser/`, `compiler/`, `definition/`, `operators/` internals only from within core or from tests (never in public-facing code)
-- Core adapter subpath exports (`@querio/core/compiler`) map to `packages/core/dist/`
-- Adapter `tsconfig.build.json` sets `paths` to `../core/dist` for `@querio/core` — adapters typecheck against core's **built** declarations, so core must be built first (`bun run build` handles the order). Do NOT point these paths at `../core/src` or tsc drags the whole core source into the adapter program and fails on `rootDir`
-- Adapter packages (`@querio/prisma`, `@querio/drizzle`, `@querio/typeorm`) depend on `@querio/core` as a peer dependency; workspace symlinks therefore do NOT exist in node_modules, which is why the `paths` → dist mapping is required
+- Core adapter subpath exports (`@queryjs/core/compiler`) map to `packages/core/dist/`
+- Adapter `tsconfig.build.json` sets `paths` to `../core/dist` for `@queryjs/core` — adapters typecheck against core's **built** declarations, so core must be built first (`bun run build` handles the order). Do NOT point these paths at `../core/src` or tsc drags the whole core source into the adapter program and fails on `rootDir`
+- Adapter packages (`@queryjs/prisma`, `@queryjs/drizzle`, `@queryjs/typeorm`) depend on `@queryjs/core` as a peer dependency; workspace symlinks therefore do NOT exist in node_modules, which is why the `paths` → dist mapping is required
 - Tests import directly from source (`../../packages/core/src/`) not from built dist
 - `dist/` directories are gitignored but are the published artifacts
 - Never let `tsc` emit into `packages/*/src/` (declaration/js files next to sources) — they trip biome's `useLiteralKeys` and pollute the build. Remove any `*.js`, `*.js.map`, `*.d.ts`, `*.d.ts.map` found under `src/`

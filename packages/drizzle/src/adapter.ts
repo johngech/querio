@@ -10,9 +10,9 @@ import {
   type ResourceQuery,
   type SearchQuery,
   type SortExpression,
-} from '@querio/core';
-import type { MappableAdapter } from '@querio/core/compiler';
-import { QueryMapper } from '@querio/core/compiler';
+} from '@queryjs/core';
+import type { MappableAdapter } from '@queryjs/core/compiler';
+import { QueryMapper } from '@queryjs/core/compiler';
 import { and, or, type SQL, sql } from 'drizzle-orm';
 
 // ── Drizzle Adapter ──────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ function quoteIdentifier(name: string): string {
  * Build parameterized queries with drizzle's `sql` tag for untrusted values.
  *
  * ```ts
- * import { toDrizzleSQL } from '@querio/drizzle';
+ * import { toDrizzleSQL } from '@queryjs/drizzle';
  * const sqlText = toDrizzleSQL(where); // debug print only
  * ```
  */

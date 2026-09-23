@@ -4,10 +4,10 @@ import type {
   ResourceQuery,
   SearchQuery,
   SortExpression,
-} from '@querio/core';
-import { type FilterOperator, nullClauseFor } from '@querio/core';
-import type { MappableAdapter } from '@querio/core/compiler';
-import { QueryMapper } from '@querio/core/compiler';
+} from '@queryjs/core';
+import { type FilterOperator, nullClauseFor } from '@queryjs/core';
+import type { MappableAdapter } from '@queryjs/core/compiler';
+import { QueryMapper } from '@queryjs/core/compiler';
 
 // ── Prisma types (inline to avoid peer dep) ──────────────────────────────
 

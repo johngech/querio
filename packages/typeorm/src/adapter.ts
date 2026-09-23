@@ -1,7 +1,7 @@
-import type { FilterExpression, ResourceQuery, SearchQuery, SortExpression } from '@querio/core';
-import { buildLikePattern, type FilterOperator, nullClauseFor } from '@querio/core';
-import type { MappableAdapter } from '@querio/core/compiler';
-import { QueryMapper } from '@querio/core/compiler';
+import type { FilterExpression, ResourceQuery, SearchQuery, SortExpression } from '@queryjs/core';
+import { buildLikePattern, type FilterOperator, nullClauseFor } from '@queryjs/core';
+import type { MappableAdapter } from '@queryjs/core/compiler';
+import { QueryMapper } from '@queryjs/core/compiler';
 import {
   And,
   Equal,

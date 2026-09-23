@@ -18,11 +18,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "paths": {
-      "@querio/core": ["./packages/core/src"],
-      "@querio/core/*": ["./packages/core/src/*"],
-      "@querio/prisma": ["./packages/prisma/src"],
-      "@querio/drizzle": ["./packages/drizzle/src"],
-      "@querio/typeorm": ["./packages/typeorm/src"]
+      "@queryjs/core": ["./packages/core/src"],
+      "@queryjs/core/*": ["./packages/core/src/*"],
+      "@queryjs/prisma": ["./packages/prisma/src"],
+      "@queryjs/drizzle": ["./packages/drizzle/src"],
+      "@queryjs/typeorm": ["./packages/typeorm/src"]
     }
   },
   "include": ["packages/*/src", "tests"],

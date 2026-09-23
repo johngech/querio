@@ -46,7 +46,7 @@ jobs:
             name="$(jq -r '.name' "$pkg/package.json")"
             version="$(jq -r '.version' "$pkg/package.json")"
             if [ "$pkg" = "packages/core" ] && [ "$version" != "$tag_version" ]; then
-              echo "::error::Tag $GITHUB_REF_NAME does not match @querio/core version $version; publish aborted." >&2
+              echo "::error::Tag $GITHUB_REF_NAME does not match @queryjs/core version $version; publish aborted." >&2
               exit 1
             fi
             echo "Publishing $name@$version (dist-tag: $dist_tag)"

@@ -15,14 +15,14 @@ Querio parses raw HTTP query parameters (`filter`, `sort`, `search`, `pagination
 ## Installation
 
 ```bash
-bun add @querio/core @querio/prisma   # or @querio/drizzle / @querio/typeorm
+bun add @queryjs/core @queryjs/prisma   # or @queryjs/drizzle / @queryjs/typeorm
 ```
 
 ## Quick Start
 
 ```typescript
-import { defineQuery, defineRelation, q } from '@querio/core';
-import { prismaQueryAdapter } from '@querio/prisma';
+import { defineQuery, defineRelation, q } from '@queryjs/core';
+import { prismaQueryAdapter } from '@queryjs/prisma';
 
 // 1. Define your resource schema with the fluent `q` API
 const memberQuery = defineRelation({
@@ -106,7 +106,7 @@ Common modifiers:
 Fine-tune allowed operators per field type:
 
 ```typescript
-import { q } from '@querio/core';
+import { q } from '@queryjs/core';
 
 const spec = q.string().operators(
   q.op.equal().notEqual().contains().endsWith().in().notIn().isNull().isNotNull(),
@@ -140,7 +140,7 @@ const usersQuery = defineQuery({
 ### Prisma
 
 ```typescript
-import { prismaQueryAdapter } from '@querio/prisma';
+import { prismaQueryAdapter } from '@queryjs/prisma';
 
 const { where, orderBy, skip, take } = prismaQueryAdapter.map(query);
 await prisma.user.findMany({ where, orderBy, skip, take });
@@ -149,7 +149,7 @@ await prisma.user.findMany({ where, orderBy, skip, take });
 ### TypeORM
 
 ```typescript
-import { typeormQueryAdapter } from '@querio/typeorm';
+import { typeormQueryAdapter } from '@queryjs/typeorm';
 
 const { where, orderBy, skip, take } = typeormQueryAdapter.map(query);
 await userRepository.find({ where, order: orderBy, skip, take });
@@ -158,7 +158,7 @@ await userRepository.find({ where, order: orderBy, skip, take });
 ### Drizzle
 
 ```typescript
-import { drizzleQueryAdapter, toDrizzleSQL } from '@querio/drizzle';
+import { drizzleQueryAdapter, toDrizzleSQL } from '@queryjs/drizzle';
 
 const { where, orderBy, skip, take } = drizzleQueryAdapter.map(query);
 const rows = await db
@@ -183,8 +183,8 @@ const rows = await db
 Implement the `QueryMapperAdapter` interface and wrap it with a `map()` helper:
 
 ```typescript
-import type { ResourceQuery, SortExpression } from '@querio/core';
-import { mapQuery, type QueryMapperAdapter } from '@querio/core/compiler';
+import type { ResourceQuery, SortExpression } from '@queryjs/core';
+import { mapQuery, type QueryMapperAdapter } from '@queryjs/core/compiler';
 
 const myAdapter: QueryMapperAdapter<MyWhere, MyOrderBy> = {
   buildWhere(query: ResourceQuery) {

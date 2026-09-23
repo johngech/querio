@@ -1,5 +1,5 @@
 {
-  "name": "@querio/core",
+  "name": "@queryjs/core",
   "version": "0.1.0",
   "description": "Framework-agnostic query parsing, validation, and ORM mapping for REST APIs",
   "license": "MIT",

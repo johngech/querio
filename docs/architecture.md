@@ -111,7 +111,7 @@ flowchart TD
 ```
 
 ```ts
-import { defineQuery, defineRelation, q } from '@querio/core';
+import { defineQuery, defineRelation, q } from '@queryjs/core';
 
 const memberQuery = defineRelation({
   fields: {
@@ -408,10 +408,10 @@ flowchart TD
 Packages:
 
 ```
-@querio/core      @querio/prisma      @querio/drizzle      @querio/typeorm
+@queryjs/core      @queryjs/prisma      @queryjs/drizzle      @queryjs/typeorm
 ```
 
-### Adapter contract (`@querio/core/compiler`)
+### Adapter contract (`@queryjs/core/compiler`)
 
 ```ts
 interface QueryMapperAdapter<TWhere = unknown, TOrderBy = unknown> {
@@ -534,11 +534,11 @@ querio/
 │   │       ├── compiler/       # QueryMapper, mapQuery, adapter contracts
 │   │       └── index.ts        # PUBLIC BARREL — the only public surface
 │   │
-│   ├── prisma/                 # @querio/prisma adapter
+│   ├── prisma/                 # @queryjs/prisma adapter
 │   │   └── src/index.ts, adapter.ts
-│   ├── drizzle/                # @querio/drizzle adapter
+│   ├── drizzle/                # @queryjs/drizzle adapter
 │   │   └── src/index.ts, adapter.ts
-│   └── typeorm/                # @querio/typeorm adapter
+│   └── typeorm/                # @queryjs/typeorm adapter
 │       └── src/index.ts, adapter.ts
 │
 ├── tests/
@@ -558,7 +558,7 @@ querio/
 1. **Core modules stay in `packages/core/src/`** — do not create new top-level directories there without explicit approval.
 2. **One module per directory** — each module (definition, operators, parser, query, compiler) has an `index.ts`.
 3. **Adaptation packages are isolated** — `packages/prisma|drizzle|typeorm` depend on core, never the reverse.
-4. **Core is only imported via its public barrel** (`packages/core/src/index.ts`) or the documented `@querio/core/compiler` subpath. Engine/parser/compiler internals may only be imported from within core or tests.
+4. **Core is only imported via its public barrel** (`packages/core/src/index.ts`) or the documented `@queryjs/core/compiler` subpath. Engine/parser/compiler internals may only be imported from within core or tests.
 5. **Tests mirror source structure** — test files live in `tests/<module>/`.
 6. **File naming** — kebab-case filenames; each directory ends with `index.ts`.
 7. **New adapters go in `packages/<adapter-name>/`** with the same structure as prisma/drizzle/typeorm.
@@ -661,8 +661,8 @@ Fuzz tests         · Operator-parity tests
 The public API stays small. Developers interact with:
 
 ```ts
-import { defineQuery, defineRelation, q } from '@querio/core';
-import { prismaQueryAdapter } from '@querio/prisma';
+import { defineQuery, defineRelation, q } from '@queryjs/core';
+import { prismaQueryAdapter } from '@queryjs/prisma';
 
 const usersQuery = defineQuery({ fields: { name: q.string().sortable().searchable() } });
 const query = usersQuery.parse(req.query);

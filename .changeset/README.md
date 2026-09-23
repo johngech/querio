@@ -1,7 +1,7 @@
 # Changesets
 
 This repository uses [Changesets](https://github.com/changesets/changesets) to
-version and publish the `@querio/*` packages.
+version and publish the `@queryjs/*` packages.
 
 ## Adding a changeset
 
@@ -18,7 +18,7 @@ describes the release.
 ## Versioning
 
 The `fixed` group in `.changeset/config.json` keeps all four packages
-(`@querio/core`, `@querio/prisma`, `@querio/drizzle`, `@querio/typeorm`) on the
+(`@queryjs/core`, `@queryjs/prisma`, `@queryjs/drizzle`, `@queryjs/typeorm`) on the
 same version so they ship together.
 
 When changesets are present, the `version` workflow automatically opens or

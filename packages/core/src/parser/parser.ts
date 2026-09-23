@@ -14,7 +14,7 @@ import { QueryWhereEngine } from './where-engine';
  * this function is the implementation behind {@link QueryDefinition.parse}.
  *
  * ```ts
- * import { defineQuery } from '@querio/core';
+ * import { defineQuery } from '@queryjs/core';
  *
  * const query = usersQuery.parse(params);
  * ```

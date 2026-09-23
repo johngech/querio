@@ -1,5 +1,5 @@
 {
-  "name": "@querio/drizzle",
+  "name": "@queryjs/drizzle",
   "version": "0.1.0",
   "description": "Drizzle adapter for Querio",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@querio/core": "^0.1.0",
+    "@queryjs/core": "^0.1.0",
     "drizzle-orm": "^0.38.3"
   },
   "devDependencies": {

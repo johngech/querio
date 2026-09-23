@@ -7,7 +7,7 @@ for (const pkg of ['core', 'prisma', 'drizzle', 'typeorm']) {
 }
 
 // Build core package
-console.log('Building @querio/core...');
+console.log('Building @queryjs/core...');
 await $`tsc -p packages/core/tsconfig.build.json`;
 
 // Bundle core ESM (single-file, self-contained)
@@ -24,7 +24,7 @@ await $`bun build packages/core/src/compiler/index.ts --outfile packages/core/di
 // Build adapter packages
 const adapters = ['prisma', 'drizzle', 'typeorm'];
 for (const adapter of adapters) {
-  console.log(`Building @querio/${adapter}...`);
+  console.log(`Building @queryjs/${adapter}...`);
   await $`tsc -p packages/${adapter}/tsconfig.build.json`;
 }
 
