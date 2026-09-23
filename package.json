@@ -8,6 +8,7 @@
     "prebuild": "bun run scripts/sync-license.ts",
     "build": "bun run build.ts",
     "sync-license": "bun run scripts/sync-license.ts",
+    "verify-doc-examples": "bun run scripts/verify-doc-examples.ts",
     "smoke-pack": "bun run scripts/smoke-pack.ts",
     "test": "bun test",
     "lint": "biome check .",
